@@ -1,4 +1,5 @@
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 
 export type TechLevel = 'Junior Tech / Trainee' | 'L1 — PM / Swap' | 'L2 — Sealed System / EPA 608' | 'L3 — Master / Foundry';
@@ -1538,31 +1539,44 @@ const INITIAL_STATE: PlatformState = {
   ],
 };
 
-const DATA_FILE_PATH = path.join(process.cwd(), 'data', 'platform-state.json');
+const SEED_FILE_PATH = path.join(process.cwd(), 'data', 'platform-state.json');
+const WRITABLE_FILE_PATH = process.env.VERCEL
+  ? path.join(os.tmpdir(), '3j-platform-state.json')
+  : SEED_FILE_PATH;
+
+const globalForState = globalThis as unknown as { __3jPlatformState?: PlatformState };
 
 export function getPlatformState(): PlatformState {
   try {
-    if (fs.existsSync(DATA_FILE_PATH)) {
-      const raw = fs.readFileSync(DATA_FILE_PATH, 'utf-8');
-      return JSON.parse(raw) as PlatformState;
+    if (fs.existsSync(WRITABLE_FILE_PATH)) {
+      const raw = fs.readFileSync(WRITABLE_FILE_PATH, 'utf-8');
+      const parsed = JSON.parse(raw) as PlatformState;
+      globalForState.__3jPlatformState = parsed;
+      return parsed;
     }
   } catch {
-    // Fallback to initial state if file read fails
+    // Fallback to in-memory or seed
   }
-  savePlatformState(INITIAL_STATE);
-  return INITIAL_STATE;
+
+  if (globalForState.__3jPlatformState) {
+    return globalForState.__3jPlatformState;
+  }
+
+  const fresh = JSON.parse(JSON.stringify(INITIAL_STATE)) as PlatformState;
+  return savePlatformState(fresh);
 }
 
 export function savePlatformState(state: PlatformState): PlatformState {
+  state.last_updated = new Date().toISOString();
+  globalForState.__3jPlatformState = state;
   try {
-    const dir = path.dirname(DATA_FILE_PATH);
+    const dir = path.dirname(WRITABLE_FILE_PATH);
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
     }
-    state.last_updated = new Date().toISOString();
-    fs.writeFileSync(DATA_FILE_PATH, JSON.stringify(state, null, 2), 'utf-8');
+    fs.writeFileSync(WRITABLE_FILE_PATH, JSON.stringify(state, null, 2), 'utf-8');
   } catch {
-    // Ignore write errors in read-only edge environments
+    // Ignore write errors in read-only environments; in-memory state remains updated
   }
   return state;
 }

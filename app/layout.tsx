@@ -16,6 +16,15 @@ export const metadata: Metadata = {
   title: "3J Industrial Parts LLC — OS Command Center & Field Operations Platform",
   description:
     "SPARE PARTS | SERVICES | CONSULTING — Unified OS Command Center (os.3jindustrialparts.com) & Field App (app.3jindustrialparts.com) for 3J Industrial Parts LLC.",
+  robots: {
+    index: false,
+    follow: false,
+    nocache: true,
+    googleBot: {
+      index: false,
+      follow: false,
+    },
+  },
 };
 
 export default function RootLayout({
