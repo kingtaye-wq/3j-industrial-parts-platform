@@ -12,7 +12,9 @@ test.describe('3J Industrial Parts LLC — Unified OS Command Center (/os) & Fie
   test('1. OS Command Center (/os): 5 Dashboard Tiles, 4 Scorecard Sections (515 Bars + 501 Industrial), 90-Day Targets Rail, and Needs Jason State Mutation', async ({
     page,
   }) => {
-    await page.goto('/os');
+    const response = await page.goto('/os');
+    expect(response?.status()).toBe(200);
+    expect(response?.headers()['x-robots-tag']).toContain('noindex');
 
     // Verify Brand Identity & Verbatim Proof Line
     await expect(page.locator('header')).toContainText('3J Industrial Parts LLC');
@@ -66,7 +68,9 @@ test.describe('3J Industrial Parts LLC — Unified OS Command Center (/os) & Fie
   test('2. Field App (/app): Role-Gated Job Claiming (Junior Tech Blocked -> Jason Signs Off Graduation -> Solo L1 Claim Unlocked; L2 EPA 608 Gate)', async ({
     page,
   }) => {
-    await page.goto('/app');
+    const response = await page.goto('/app');
+    expect(response?.status()).toBe(200);
+    expect(response?.headers()['x-robots-tag']).toContain('noindex');
 
     // Switch to Junior Tech / Trainee
     await page.getByTestId('role-btn-junior-tech-trainee').click();

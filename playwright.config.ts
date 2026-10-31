@@ -1,5 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
+const remoteUrl = process.env.PLAYWRIGHT_BASE_URL;
+
 export default defineConfig({
   testDir: './tests',
   fullyParallel: false,
@@ -8,7 +10,7 @@ export default defineConfig({
   workers: 1,
   reporter: 'list',
   use: {
-    baseURL: 'http://localhost:3133',
+    baseURL: remoteUrl || 'http://localhost:3133',
     trace: 'on-first-retry',
     channel: 'chrome',
   },
@@ -18,10 +20,12 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'], channel: 'chrome' },
     },
   ],
-  webServer: {
-    command: 'npm run start -- -p 3133',
-    url: 'http://localhost:3133',
-    reuseExistingServer: !process.env.CI,
-    timeout: 60000,
-  },
+  webServer: remoteUrl
+    ? undefined
+    : {
+        command: 'npm run start -- -p 3133',
+        url: 'http://localhost:3133',
+        reuseExistingServer: !process.env.CI,
+        timeout: 60000,
+      },
 });
