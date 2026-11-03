@@ -16,6 +16,7 @@ test.describe('3J Industrial Parts LLC — Unified OS Command Center (/os) & 3JI
       expect(response?.status()).toBe(200);
       expect(response?.headers()['x-robots-tag']).toContain('noindex');
 
+      await expect(page.locator('header')).toBeVisible();
       const bodyText = await page.locator('body').innerText();
       expect(bodyText.toLowerCase()).not.toContain('junior tech program');
       expect(bodyText.toLowerCase()).not.toContain('junior tech');
