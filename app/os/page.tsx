@@ -7,26 +7,26 @@ import type { PlatformState } from '@/lib/store';
 type NavSection =
   | 'Dashboard'
   | 'Scorecard'
+  | 'Needs Jason'
+  | 'Pipeline'
+  | 'Fleet & Inventory'
+  | '3JI-Repair & Techs'
+  | 'Targets (90-day)'
   | 'Division 01 — Foundry'
-  | 'Division 02 — Food Service (Cuyahoga)'
-  | 'Loaner Fleet'
-  | 'Quotes (<24h SLA)'
-  | 'Inventory'
-  | 'Junior Tech Program'
-  | 'Tech Network'
-  | 'Needs Jason';
+  | 'Division 02 — 3JI-Repair (Cuyahoga)'
+  | 'Quotes (<24h SLA)';
 
 const NAV_ITEMS: NavSection[] = [
   'Dashboard',
   'Scorecard',
-  'Division 01 — Foundry',
-  'Division 02 — Food Service (Cuyahoga)',
-  'Loaner Fleet',
-  'Quotes (<24h SLA)',
-  'Inventory',
-  'Junior Tech Program',
-  'Tech Network',
   'Needs Jason',
+  'Pipeline',
+  'Fleet & Inventory',
+  '3JI-Repair & Techs',
+  'Targets (90-day)',
+  'Division 01 — Foundry',
+  'Division 02 — 3JI-Repair (Cuyahoga)',
+  'Quotes (<24h SLA)',
 ];
 
 export default function OSCommandCenterPage() {
@@ -41,13 +41,17 @@ export default function OSCommandCenterPage() {
   const [dispatchBiz, setDispatchBiz] = useState('[Bar Account Placeholder — Cleveland Flats Taproom]');
   const [dispatchCity, setDispatchCity] = useState('Cleveland');
   const [dispatchZip, setDispatchZip] = useState('44113');
-  const [dispatchMachine, setDispatchMachine] = useState('Frozen Beverage / Slushie Machine (Twin-Bowl)');
-  const [dispatchSymptom, setDispatchSymptom] = useState('Emergency Down — Left freeze cylinder warm, loaner needed');
+  const [dispatchMachine, setDispatchMachine] = useState('Frozen Beverage / Slushie Machines');
+  const [dispatchSymptom, setDispatchSymptom] = useState(
+    'Emergency Down — Left freeze cylinder warm, loaner needed'
+  );
   const [dispatchLevel, setDispatchLevel] = useState<'L1' | 'L2' | 'L3'>('L1');
   const [dispatchLoaner, setDispatchLoaner] = useState(true);
 
   // Quick Quote Form State
-  const [quoteDiv, setQuoteDiv] = useState<'Division 01 — Foundry' | 'Division 02 — Commercial Equipment'>('Division 01 — Foundry');
+  const [quoteDiv, setQuoteDiv] = useState<'Division 01 — Foundry' | 'Division 02 — 3JI-Repair'>(
+    'Division 01 — Foundry'
+  );
   const [quoteBiz, setQuoteBiz] = useState('[Foundry Account Placeholder — Canton Alloy Castings]');
   const [quoteSystem, setQuoteSystem] = useState('FDU & SMARTT Degassing Rotor + Health Check');
   const [quoteSerial, setQuoteSerial] = useState('SN-FDU-7741A');
@@ -88,13 +92,37 @@ export default function OSCommandCenterPage() {
     }
   };
 
+  const handleScheduleJason = async (jobId: string) => {
+    setBusyId(jobId);
+    try {
+      const res = await fetch('/api/state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'schedule_jason_on_opportunity', job_id: jobId }),
+      });
+      const data = await res.json();
+      if (data.state) {
+        setState(data.state);
+        notify(
+          `Scheduled Jason Allen onto ${jobId} per Module 1 retention rule & approved draft customer update.`
+        );
+      }
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   const handleApproveQuote = async (quoteId: string) => {
     setBusyId(quoteId);
     try {
       const res = await fetch('/api/state', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'update_quote_status', quote_id: quoteId, status: 'Approved / Sent' }),
+        body: JSON.stringify({
+          action: 'update_quote_status',
+          quote_id: quoteId,
+          status: 'Approved / Sent',
+        }),
       });
       const data = await res.json();
       if (data.state) {
@@ -117,7 +145,7 @@ export default function OSCommandCenterPage() {
       const data = await res.json();
       if (data.state) {
         setState(data.state);
-        notify(`Graduated ${name} to L1 — PM / Swap! Solo claiming unlocked in Field App.`);
+        notify(`Graduated ${name} to L1 — PM / Swap! Solo claiming unlocked in 3JI-Repair Field App.`);
       }
     } finally {
       setBusyId(null);
@@ -145,7 +173,7 @@ export default function OSCommandCenterPage() {
     if (data.state) {
       setState(data.state);
       setShowDispatchModal(false);
-      notify(`Dispatched ${data.job.id} to Cuyahoga County Job Map.`);
+      notify(`Dispatched ${data.job.id} to 3JI-Repair Cuyahoga County Job Map.`);
     }
   };
 
@@ -187,8 +215,14 @@ export default function OSCommandCenterPage() {
 
   const openJobsCount = state.jobs.filter((j) => j.status !== 'Completed').length;
   const unclaimedJobsCount = state.jobs.filter((j) => j.status === 'Unclaimed').length;
+  const escalatedJobsCount = state.jobs.filter(
+    (j) => j.status === 'Unclaimed' && j.on_jason_tentative_schedule
+  ).length;
   const openQuotesCount = state.quotes.filter(
-    (q) => q.status === 'Draft' || q.status === 'Needs Jason Approval' || q.status === 'Approved / Sent'
+    (q) =>
+      q.status === 'Draft' ||
+      q.status === 'Needs Jason Approval' ||
+      q.status === 'Approved / Sent'
   ).length;
   const deployedLoanersCount = state.loaners.filter((l) => l.status === 'Deployed').length;
   const availableLoanersCount = state.loaners.filter((l) => l.status === 'Available').length;
@@ -198,7 +232,7 @@ export default function OSCommandCenterPage() {
   const pendingNeedsJason = state.needs_jason.filter((n) => n.status === 'Pending Jason');
   const lowStockParts = state.parts.filter((p) => p.qty_on_hand <= p.reorder_point);
   const carePlanMrr = 2146; // 14 active Cuyahoga Care Plan locations ($149-199/mo multi, $79-99/mo single)
-  const juniorTechsInProgram = state.techs.filter((t) => !t.graduated_signed_off_by_jason).length;
+  const traineesInPipeline = state.techs.filter((t) => !t.graduated_signed_off_by_jason).length;
   const graduatedTechsCount = state.techs.filter((t) => t.graduated_signed_off_by_jason).length;
   const div1MentorshipCount = state.techs.filter((t) => t.division_01_foundry_track).length;
 
@@ -283,7 +317,7 @@ export default function OSCommandCenterPage() {
               data-testid="switch-to-field-app"
               className="px-3 py-1.5 rounded bg-white text-black font-black uppercase tracking-wider text-xs hover:bg-[#5ADCC8] transition"
             >
-              Field App (/app) →
+              3JI-Repair Field App (/app) →
             </Link>
           </div>
         </div>
@@ -352,9 +386,9 @@ export default function OSCommandCenterPage() {
             <div className="pt-2 border-t border-zinc-800 font-mono text-[10px] text-zinc-400">
               • Foseco (Vesuvius) Platforms
               <br />
-              • Div 01: Nationwide (USA)
+              • Div 01: Nationwide Foundry (USA)
               <br />
-              • Div 02: CUYAHOGA COUNTY, OH ONLY
+              • Div 02: 3JI-Repair (Launch Area: Cuyahoga County, OH)
               <br />• Draft-First: Nothing contacts customers without Jason&apos;s approval.
             </div>
           </div>
@@ -363,14 +397,17 @@ export default function OSCommandCenterPage() {
         {/* Main Content Area */}
         <main className="flex-1 p-5 md:p-7 space-y-8 overflow-y-auto">
           {/* Top KPI Strip (8 Live Counts per Spec Part 1) */}
-          <section aria-label="Executive Live Counts" className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-3">
+          <section
+            aria-label="Executive Live Counts"
+            className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-3"
+          >
             <div className="p-3 bg-zinc-950 border border-zinc-800 rounded">
               <div className="text-[10px] font-mono uppercase text-zinc-400">Open Jobs</div>
               <div className="text-xl font-black text-white mt-1">{openJobsCount}</div>
               <div className="text-[11px] text-[#5ADCC8] font-mono">Active Dispatch</div>
             </div>
             <div className="p-3 bg-zinc-950 border border-zinc-800 rounded">
-              <div className="text-[10px] font-mono uppercase text-zinc-400">Awaiting Claim</div>
+              <div className="text-[10px] font-mono uppercase text-zinc-400">Jobs Awaiting Claim</div>
               <div className="text-xl font-black text-white mt-1">{unclaimedJobsCount}</div>
               <div className="text-[11px] text-[#5ADCC8] font-mono">≤ 2h Claim SLA</div>
             </div>
@@ -382,7 +419,9 @@ export default function OSCommandCenterPage() {
               <div className="text-[11px] text-[#5ADCC8] font-mono">{availableLoanersCount} Ready Now</div>
             </div>
             <div className="p-3 bg-zinc-950 border border-zinc-800 rounded">
-              <div className="text-[10px] font-mono uppercase text-zinc-400">Quotes &lt;24h</div>
+              <div className="text-[10px] font-mono uppercase text-zinc-400">
+                Quotes Awaiting Response
+              </div>
               <div className="text-xl font-black text-white mt-1">{openQuotesCount}</div>
               <div className="text-[11px] text-[#5ADCC8] font-mono">100% &lt;24h SLA</div>
             </div>
@@ -391,9 +430,14 @@ export default function OSCommandCenterPage() {
               <div className="text-xl font-black text-[#5ADCC8] mt-1">${carePlanMrr.toLocaleString()}/mo</div>
               <div className="text-[11px] text-zinc-400 font-mono">14 Cuyahoga Locs</div>
             </div>
-            <div className="p-3 bg-zinc-950 border border-zinc-800 rounded">
-              <div className="text-[10px] font-mono uppercase text-zinc-400">Junior Techs</div>
-              <div className="text-xl font-black text-white mt-1">{juniorTechsInProgram} Enrolled</div>
+            <div
+              data-testid="tile-trainees-in-pipeline"
+              className="p-3 bg-zinc-950 border border-[#5ADCC8]/50 rounded"
+            >
+              <div className="text-[10px] font-mono uppercase text-[#5ADCC8]">
+                3JI-Repair Trainees in Pipeline
+              </div>
+              <div className="text-xl font-black text-white mt-1">{traineesInPipeline} Enrolled</div>
               <div className="text-[11px] text-[#5ADCC8] font-mono">{graduatedTechsCount} Graduated</div>
             </div>
             <div className="p-3 bg-zinc-950 border border-zinc-800 rounded">
@@ -402,7 +446,9 @@ export default function OSCommandCenterPage() {
               <div className="text-[11px] text-[#5ADCC8] font-mono">Critical SKUs</div>
             </div>
             <div className="p-3 bg-zinc-950 border border-zinc-800 rounded">
-              <div className="text-[10px] font-mono uppercase text-zinc-400">Revenue MTD</div>
+              <div className="text-[10px] font-mono uppercase text-zinc-400">
+                Revenue MTD by Division
+              </div>
               <div className="text-xl font-black text-[#5ADCC8] mt-1">$34,130</div>
               <div className="text-[11px] text-zinc-400 font-mono">$24.5k D1 · $9.6k D2</div>
             </div>
@@ -415,10 +461,11 @@ export default function OSCommandCenterPage() {
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-800 pb-3">
               <div>
                 <h1 className="text-xl md:text-2xl font-black uppercase tracking-wider text-white">
-                  OS Command Center — Active View: <span className="text-[#5ADCC8]">{activeNav}</span>
+                  OS Command Center — Active View:{' '}
+                  <span className="text-[#5ADCC8]">{activeNav}</span>
                 </h1>
                 <p className="text-xs text-zinc-400 font-mono">
-                  Two Divisions · One Shared Dataset · Estimate within 24 hours · Nothing contacts customers without Jason&apos;s approval
+                  Division 01 Foundry (Nationwide) &amp; Division 02 3JI-Repair (Launch Area: Cuyahoga County) · All Financials Live in OS · Draft-First Gate
                 </p>
               </div>
               <div className="text-xs font-mono text-zinc-400">
@@ -427,7 +474,7 @@ export default function OSCommandCenterPage() {
             </div>
 
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-              {/* TILE 1: Needs Jason Queue */}
+              {/* TILE 1: Needs Jason Queue (including Module 1 Retention Escalations) */}
               <div
                 data-testid="tile-needs-jason"
                 className="xl:col-span-6 bg-zinc-950 border border-zinc-800 rounded p-5 flex flex-col justify-between"
@@ -439,7 +486,7 @@ export default function OSCommandCenterPage() {
                         Tile 1
                       </span>
                       <h2 className="text-base font-black uppercase tracking-wider text-white">
-                        1. Needs Jason Queue (Draft-First Gate)
+                        1. Needs Jason Queue &amp; Module 1 Escalations
                       </h2>
                     </div>
                     <span
@@ -450,7 +497,7 @@ export default function OSCommandCenterPage() {
                     </span>
                   </div>
                   <p className="text-xs text-zinc-400 mb-4">
-                    Pending quote approvals, Junior Tech graduation sign-offs, OAC 3717-1-08.1 sanitizing log gates, unclaimed jobs &gt; 4h, and out-of-county exceptions.
+                    Quote approvals, 3JI-Repair trainee graduation sign-offs, OAC 3717-1-08.1 sanitizing log gates, low-stock critical parts, and opportunities escalated under the Module 1 retention rule.
                   </p>
 
                   <div className="space-y-2.5 max-h-80 overflow-y-auto pr-1">
@@ -528,7 +575,7 @@ export default function OSCommandCenterPage() {
                     </span>
                   </div>
                   <p className="text-xs text-zinc-400 mb-4">
-                    Live countdown timers on every open quote request across Division 01 (Foundry) &amp; Division 02 (Cuyahoga Commercial Equipment).
+                    Live countdown timers on every open quote request across Division 01 (Foundry) &amp; Division 02 (3JI-Repair).
                   </p>
 
                   <div className="space-y-2.5">
@@ -549,11 +596,15 @@ export default function OSCommandCenterPage() {
                             </span>
                           </div>
                           <div className="text-[11px] text-zinc-400">
-                            {q.system_or_machine} · Serial: <span className="font-mono text-zinc-200">{q.serial_number}</span>
+                            {q.system_or_machine} · Serial:{' '}
+                            <span className="font-mono text-zinc-200">{q.serial_number}</span>
                           </div>
                           <div className="text-[11px] font-mono text-zinc-300">
-                            Labor: {q.labor_tier} · Markup: {q.contract_pricing ? '+25% Contract' : '+35% Standard'} · Total:{' '}
-                            <strong className="text-[#5ADCC8]">${q.total_amount.toLocaleString()}</strong>
+                            Labor: {q.labor_tier} · Markup:{' '}
+                            {q.contract_pricing ? '+25% Contract' : '+35% Standard'} · Total:{' '}
+                            <strong className="text-[#5ADCC8]">
+                              ${q.total_amount.toLocaleString()}
+                            </strong>
                           </div>
                         </div>
 
@@ -583,7 +634,7 @@ export default function OSCommandCenterPage() {
                 </div>
               </div>
 
-              {/* TILE 3: Cuyahoga County Live Dispatch & Loaner Map */}
+              {/* TILE 3: Cuyahoga County Live Dispatch & Loaner Map + Retention Rule Oversight */}
               <div
                 data-testid="tile-cuyahoga-dispatch-map"
                 className="xl:col-span-4 bg-zinc-950 border border-zinc-800 rounded p-5"
@@ -594,26 +645,30 @@ export default function OSCommandCenterPage() {
                       Tile 3
                     </span>
                     <h2 className="text-sm font-black uppercase tracking-wider text-white">
-                      3. Cuyahoga County Live Dispatch &amp; Loaner Map
+                      3. 3JI-Repair Cuyahoga Dispatch &amp; Escalation Oversight
                     </h2>
                   </div>
                 </div>
-                <div className="text-[11px] font-mono text-[#5ADCC8] mb-3 uppercase">
-                  Division 02 Service Area: CUYAHOGA COUNTY, OHIO ONLY
+                <div
+                  data-testid="os-service-area-config"
+                  className="text-[11px] font-mono text-[#5ADCC8] mb-3 p-2 rounded bg-black border border-zinc-800"
+                >
+                  <strong>Configurable Launch Area:</strong> {state.service_area_config.active_launch_area} (National expansion configurable; Cuyahoga County enforced at launch)
                 </div>
 
-                {/* Stylized Live Cuyahoga Radar Map */}
-                <div className="bg-black border border-zinc-800 rounded p-3 mb-3">
-                  <div className="flex items-center justify-between text-[10px] font-mono text-zinc-400 mb-2">
-                    <span>LAKE ERIE SHORELINE (CLEVELAND / LAKEWOOD / EUCLID)</span>
-                    <span>CUYAHOGA BOUNDARY</span>
+                {/* Live Cuyahoga Opportunities & Module 1 Retention Rule */}
+                <div className="bg-black border border-zinc-800 rounded p-3 mb-3 space-y-2">
+                  <div className="flex items-center justify-between text-[10px] font-mono text-zinc-400">
+                    <span>OPPORTUNITIES &amp; RETENTION ESCALATION RULE</span>
+                    <span className="text-[#5ADCC8]">{escalatedJobsCount} On Jason Schedule</span>
                   </div>
-                  <div className="space-y-2">
-                    {state.jobs.map((job) => (
-                      <div
-                        key={job.id}
-                        className="p-2 rounded bg-zinc-950 border border-zinc-800 flex items-center justify-between gap-2 text-xs"
-                      >
+                  {state.jobs.map((job) => (
+                    <div
+                      key={job.id}
+                      data-testid={`os-opportunity-row-${job.id}`}
+                      className="p-2 rounded bg-zinc-950 border border-zinc-800 space-y-1.5 text-xs"
+                    >
+                      <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2">
                           <span
                             className={`h-2.5 w-2.5 rounded-full shrink-0 ${
@@ -633,13 +688,25 @@ export default function OSCommandCenterPage() {
                         </div>
                         <div className="text-right font-mono text-[10px]">
                           <div className="text-[#5ADCC8] font-bold">{job.status}</div>
-                          {job.assigned_loaner_id && (
-                            <div className="text-zinc-400">Loaner: {job.assigned_loaner_id}</div>
-                          )}
+                          <div className="text-zinc-400">{job.posted_hours_ago}h ago</div>
                         </div>
                       </div>
-                    ))}
-                  </div>
+
+                      <div className="text-[10px] font-mono text-zinc-300 flex flex-wrap items-center justify-between gap-1 pt-1 border-t border-zinc-900">
+                        <span>Stage: {job.escalation_stage}</span>
+                        {job.status === 'Unclaimed' && (
+                          <button
+                            type="button"
+                            data-testid={`os-schedule-jason-btn-${job.id}`}
+                            onClick={() => handleScheduleJason(job.id)}
+                            className="px-2 py-0.5 rounded bg-[#5ADCC8] text-black font-black uppercase text-[9px] cursor-pointer"
+                          >
+                            Schedule Jason Now
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
                 </div>
 
                 {/* Loaner Fleet LN-01..LN-05 Mini Strip */}
@@ -681,7 +748,7 @@ export default function OSCommandCenterPage() {
                   </div>
                 </div>
                 <p className="text-xs text-zinc-400 mb-3">
-                  Foseco (Vesuvius) melt-treatment platforms: serial-verified spare parts (`+35%` standard / `+25%` contract), health checks, and U.S. field service.
+                  Foseco (Vesuvius) melt-treatment platforms: serial-verified spare parts (+35% standard / +25% contract), health checks, and U.S. field service.
                 </p>
 
                 <div className="space-y-2.5 text-xs">
@@ -691,28 +758,24 @@ export default function OSCommandCenterPage() {
                       family: 'Graphite Rotors & Shafts (XSR/FDR/XDR/FDDR)',
                       activeAccounts: 6,
                       ordersOpen: 4,
-                      status: 'Serial-Verified Dispatch',
                     },
                     {
                       platform: 'MTS 1500 (Metal Treatment Station)',
                       family: 'FDDR Rotors + COVERAL / SIMODAL / NUCLEANT Fluxes',
                       activeAccounts: 5,
                       ordersOpen: 3,
-                      status: '2 PM Visits + Rotor Restock',
                     },
                     {
                       platform: 'SMARTT (Automated Degassing)',
                       family: 'DIAMANT Ceramic Wear Parts & Metering Nozzles',
                       activeAccounts: 4,
                       ordersOpen: 3,
-                      status: 'Health Check & Calibration',
                     },
                     {
                       platform: 'ThermaTest NGIII 5000',
                       family: 'Thermal-Analysis Quartz Cups & Type-K Thermocouples',
                       activeAccounts: 3,
                       ordersOpen: 2,
-                      status: 'NIST Calibration + Cup Orders',
                     },
                   ].map((sys) => (
                     <div
@@ -732,9 +795,9 @@ export default function OSCommandCenterPage() {
                 </div>
               </div>
 
-              {/* TILE 5: Junior Tech & Tech Network Pulse */}
+              {/* TILE 5: 3JI-Repair & Tech Network Pulse */}
               <div
-                data-testid="tile-junior-tech-pulse"
+                data-testid="tile-3ji-repair-tech-pulse"
                 className="xl:col-span-4 bg-zinc-950 border border-zinc-800 rounded p-5"
               >
                 <div className="flex items-center justify-between mb-3">
@@ -743,12 +806,12 @@ export default function OSCommandCenterPage() {
                       Tile 5
                     </span>
                     <h2 className="text-sm font-black uppercase tracking-wider text-white">
-                      5. Junior Tech &amp; Tech Network Pulse
+                      5. 3JI-Repair &amp; Tech Network Pulse
                     </h2>
                   </div>
                 </div>
                 <p className="text-xs text-zinc-400 mb-3">
-                  Vocational training pipeline for Division 02 (bar/restaurant equipment) &amp; recruiting funnel for Jason&apos;s Division 01 foundry mentorship.
+                  Vocational-style training pipeline for 3JI-Repair (Division 02 commercial equipment) &amp; recruiting funnel for Jason&apos;s Division 01 foundry mentorship.
                 </p>
 
                 <div className="space-y-2 mb-3">
@@ -807,13 +870,13 @@ export default function OSCommandCenterPage() {
                   Executive Scorecard — 4 Core Sections &amp; 90-Day Targets Rail
                 </h2>
                 <p className="text-xs text-zinc-400 font-mono">
-                  Live KPIs across Division 01 Foundry (Nationwide), Division 02 Commercial Equipment (Cuyahoga County, OH Only), Junior Tech Program, and Pipeline/Financials
+                  Live KPIs across Division 01 Foundry (Nationwide), Division 02 — 3JI-Repair (Launch Area: Cuyahoga County), 3JI-Repair &amp; Tech Network, and Pipeline &amp; Financials (ALL Financials Live in OS)
                 </p>
               </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* SECTION A — Division 01: Industrial Foundry Support (Nationwide) */}
+              {/* SECTION A — Division 01: Foundry */}
               <div
                 data-testid="scorecard-section-a"
                 className="bg-zinc-950 border border-zinc-800 rounded p-5 space-y-4"
@@ -824,7 +887,7 @@ export default function OSCommandCenterPage() {
                       Scorecard Section A · Nationwide (USA)
                     </span>
                     <h3 className="text-base font-black uppercase tracking-wide text-white">
-                      A. Division 01 — Industrial Foundry Support (Nationwide)
+                      A. Division 01 — Foundry
                     </h3>
                   </div>
                   <span className="text-xs font-mono px-2 py-1 bg-black border border-zinc-800 rounded text-[#5ADCC8]">
@@ -834,40 +897,62 @@ export default function OSCommandCenterPage() {
 
                 <div className="grid grid-cols-2 gap-3 text-xs">
                   <div className="p-3 bg-black border border-zinc-800 rounded">
-                    <div className="text-zinc-400 font-mono text-[11px]">1. Quotes Requested (7d / 30d)</div>
+                    <div className="text-zinc-400 font-mono text-[11px]">
+                      1. Quotes Sent (7d / 30d)
+                    </div>
                     <div className="text-lg font-black text-white mt-0.5">9 (7d) · 28 (30d)</div>
                     <div className="text-[11px] text-[#5ADCC8] font-mono">↑ +18% vs prior 30d</div>
                   </div>
                   <div className="p-3 bg-black border border-zinc-800 rounded">
                     <div className="text-zinc-400 font-mono text-[11px]">2. Quote Turnaround SLA</div>
-                    <div className="text-lg font-black text-[#5ADCC8] mt-0.5">4.2h Median (100% &lt;24h)</div>
+                    <div className="text-lg font-black text-[#5ADCC8] mt-0.5">
+                      4.2h Median (100% &lt;24h)
+                    </div>
                     <div className="text-[11px] text-zinc-400 font-mono">Target: ≤ 24 hours</div>
                   </div>
                   <div className="p-3 bg-black border border-zinc-800 rounded">
-                    <div className="text-zinc-400 font-mono text-[11px]">3. Win Rate &amp; Open Pipeline ($)</div>
+                    <div className="text-zinc-400 font-mono text-[11px]">
+                      3. Win Rate &amp; Open Pipeline ($)
+                    </div>
                     <div className="text-lg font-black text-white mt-0.5">42.8% · $48,600</div>
                     <div className="text-[11px] text-[#5ADCC8] font-mono">Target Win Rate: ≥ 35%</div>
                   </div>
                   <div className="p-3 bg-black border border-zinc-800 rounded">
-                    <div className="text-zinc-400 font-mono text-[11px]">4. Active PM / Calibration Contracts</div>
-                    <div className="text-lg font-black text-white mt-0.5">11 Contracts · 9 Checks/Qtr</div>
-                    <div className="text-[11px] text-[#5ADCC8] font-mono">Target Health Checks: ≥ 8/qtr</div>
+                    <div className="text-zinc-400 font-mono text-[11px]">
+                      4. Health Checks &amp; Contracts
+                    </div>
+                    <div className="text-lg font-black text-white mt-0.5">
+                      11 Contracts · 9 Checks/Qtr
+                    </div>
+                    <div className="text-[11px] text-[#5ADCC8] font-mono">
+                      Target Health Checks: ≥ 8/qtr
+                    </div>
                   </div>
                   <div className="p-3 bg-black border border-zinc-800 rounded">
-                    <div className="text-zinc-400 font-mono text-[11px]">5. Parts Fulfillment &amp; Margin</div>
+                    <div className="text-zinc-400 font-mono text-[11px]">
+                      5. Parts Revenue &amp; Margin
+                    </div>
                     <div className="text-lg font-black text-white mt-0.5">$24,490 · 28.4% GM</div>
-                    <div className="text-[11px] text-[#5ADCC8] font-mono">+35% Standard / +25% Contract (Target ≥26%)</div>
+                    <div className="text-[11px] text-[#5ADCC8] font-mono">
+                      +35% Standard / +25% Contract (Target ≥26%)
+                    </div>
                   </div>
                   <div className="p-3 bg-black border border-zinc-800 rounded">
-                    <div className="text-zinc-400 font-mono text-[11px]">6. Repeat-Order &amp; Field Days</div>
-                    <div className="text-lg font-black text-white mt-0.5">66.7% Repeat · 14 Days</div>
-                    <div className="text-[11px] text-[#5ADCC8] font-mono">Target ≥ 60% · Billed at $139–149/hr</div>
+                    <div className="text-zinc-400 font-mono text-[11px]">
+                      6. Repeat-Order &amp; Field Days
+                    </div>
+                    <div className="text-lg font-black text-white mt-0.5">
+                      66.7% Repeat · 14 Days
+                    </div>
+                    <div className="text-[11px] text-[#5ADCC8] font-mono">
+                      Target ≥ 60% · Billed at $139–149/hr
+                    </div>
                   </div>
                 </div>
 
                 <div className="p-3 bg-black border border-zinc-800 rounded text-xs">
                   <div className="font-mono text-[11px] text-zinc-400 uppercase mb-2">
-                    Top Platform Demand &amp; Active Accounts by System (18 Distinct Customers)
+                    Active Accounts by System (18 Distinct Customers)
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 font-mono text-[11px]">
                     <div className="p-2 bg-zinc-950 border border-zinc-800 rounded">
@@ -890,7 +975,7 @@ export default function OSCommandCenterPage() {
                 </div>
               </div>
 
-              {/* SECTION B — Division 02: Commercial Equipment & Loaner Fleet (Cuyahoga County Only) */}
+              {/* SECTION B — Division 02: 3JI-Repair, commercial repair service (launch area: Cuyahoga County) */}
               <div
                 data-testid="scorecard-section-b"
                 className="bg-zinc-950 border border-zinc-800 rounded p-5 space-y-4"
@@ -898,37 +983,55 @@ export default function OSCommandCenterPage() {
                 <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
                   <div>
                     <span className="text-[10px] font-mono uppercase text-[#5ADCC8] font-bold">
-                      Scorecard Section B · CUYAHOGA COUNTY, OHIO ONLY
+                      Scorecard Section B · Launch Area: Cuyahoga County, OH
                     </span>
                     <h3 className="text-base font-black uppercase tracking-wide text-white">
-                      B. Division 02 — Commercial Equipment &amp; Loaner Fleet (Cuyahoga Only)
+                      B. Division 02 — 3JI-Repair, commercial repair service (launch area: Cuyahoga County)
                     </h3>
                   </div>
                   <span className="text-xs font-mono px-2 py-1 bg-[#5ADCC8]/15 border border-[#5ADCC8]/40 rounded text-[#5ADCC8] font-bold">
-                    Cuyahoga County Only
+                    Cuyahoga County Launch
                   </span>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 text-xs">
                   <div className="p-3 bg-black border border-zinc-800 rounded">
-                    <div className="text-zinc-400 font-mono text-[11px]">1. Active Care Plans &amp; MRR</div>
-                    <div className="text-lg font-black text-[#5ADCC8] mt-0.5">14 Locs · $2,146/mo MRR</div>
+                    <div className="text-zinc-400 font-mono text-[11px]">
+                      1. Care-Plan Accounts &amp; MRR
+                    </div>
+                    <div className="text-lg font-black text-[#5ADCC8] mt-0.5">
+                      14 Locs · $2,146/mo MRR
+                    </div>
                     <div className="text-[11px] text-zinc-400 font-mono">
                       9 Multi ($149–199/mo) · 5 Single ($79–99/mo)
                     </div>
                   </div>
                   <div className="p-3 bg-black border border-zinc-800 rounded">
-                    <div className="text-zinc-400 font-mono text-[11px]">2. Emergency Claim &amp; Response</div>
-                    <div className="text-lg font-black text-white mt-0.5">1.1h Claim · Same-Day</div>
-                    <div className="text-[11px] text-[#5ADCC8] font-mono">Target Claim ≤ 2h · On-site 2.6h med</div>
+                    <div className="text-zinc-400 font-mono text-[11px]">
+                      2. Median Claim &amp; Response Time
+                    </div>
+                    <div className="text-lg font-black text-white mt-0.5">
+                      1.1h Claim · Same-Day
+                    </div>
+                    <div className="text-[11px] text-[#5ADCC8] font-mono">
+                      Target Claim ≤ 2h · On-site 2.6h med
+                    </div>
                   </div>
                   <div className="p-3 bg-black border border-zinc-800 rounded">
-                    <div className="text-zinc-400 font-mono text-[11px]">3. First-Visit Resolution (w/ Swap)</div>
-                    <div className="text-lg font-black text-white mt-0.5">88.5% First-Time Fix</div>
-                    <div className="text-[11px] text-[#5ADCC8] font-mono">Target: ≥ 80% · 34 Jobs Completed (30d)</div>
+                    <div className="text-zinc-400 font-mono text-[11px]">
+                      3. First-Time-Fix Rate &amp; Jobs (30d)
+                    </div>
+                    <div className="text-lg font-black text-white mt-0.5">
+                      88.5% Fix · 34 Jobs
+                    </div>
+                    <div className="text-[11px] text-[#5ADCC8] font-mono">
+                      Target: ≥ 80% (Including Loaner Swap)
+                    </div>
                   </div>
                   <div className="p-3 bg-black border border-zinc-800 rounded">
-                    <div className="text-zinc-400 font-mono text-[11px]">4. Loaner Fleet &amp; Turnaround</div>
+                    <div className="text-zinc-400 font-mono text-[11px]">
+                      4. Loaner Utilization &amp; Turnaround
+                    </div>
                     <div className="text-lg font-black text-white mt-0.5">
                       {availableLoanersCount} Avail / {deployedLoanersCount} Out / {sanitizingLoanersCount} Prep
                     </div>
@@ -937,21 +1040,31 @@ export default function OSCommandCenterPage() {
                     </div>
                   </div>
                   <div className="p-3 bg-black border border-zinc-800 rounded">
-                    <div className="text-zinc-400 font-mono text-[11px]">5. $99 Diagnostics &amp; Conversion</div>
-                    <div className="text-lg font-black text-white mt-0.5">22 ($99) · 86.4% Conv</div>
-                    <div className="text-[11px] text-[#5ADCC8] font-mono">$99 Diagnostic Credited Toward Repair</div>
+                    <div className="text-zinc-400 font-mono text-[11px]">
+                      5. $99 Diagnostics &amp; Conversion
+                    </div>
+                    <div className="text-lg font-black text-white mt-0.5">
+                      22 ($99) · 86.4% Conv
+                    </div>
+                    <div className="text-[11px] text-[#5ADCC8] font-mono">
+                      $99 Diagnostic Credited Toward Repair
+                    </div>
                   </div>
                   <div className="p-3 bg-black border border-zinc-800 rounded">
-                    <div className="text-zinc-400 font-mono text-[11px]">6. Labor Tier Revenue Mix &amp; Bench</div>
-                    <div className="text-lg font-black text-white mt-0.5">3.2d Med Bench (≤5d)</div>
+                    <div className="text-zinc-400 font-mono text-[11px]">
+                      6. Bench Queue Depth &amp; Labor Mix
+                    </div>
+                    <div className="text-lg font-black text-white mt-0.5">
+                      2 Units · 3.2d Med Bench (≤5d)
+                    </div>
                     <div className="text-[11px] text-zinc-300 font-mono">
-                      $119–129 Bench (38%) · $139–149 Field (41%) · $169–179 Master (21%)
+                      $119–129 Bench · $139–149 Field · $169–179 Master
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* SECTION C — The Junior Tech Program & Tech Network */}
+              {/* SECTION C — 3JI-Repair & Tech Network */}
               <div
                 data-testid="scorecard-section-c"
                 className="bg-zinc-950 border border-zinc-800 rounded p-5 space-y-4"
@@ -959,10 +1072,10 @@ export default function OSCommandCenterPage() {
                 <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
                   <div>
                     <span className="text-[10px] font-mono uppercase text-[#5ADCC8] font-bold">
-                      Scorecard Section C · Vocational Training &amp; Foundry Recruiting Funnel
+                      Scorecard Section C · Vocational Pipeline &amp; Foundry Recruiting Funnel
                     </span>
                     <h3 className="text-base font-black uppercase tracking-wide text-white">
-                      C. The Junior Tech Program &amp; Tech Network
+                      C. 3JI-Repair &amp; Tech Network
                     </h3>
                   </div>
                   <span className="text-xs font-mono px-2 py-1 bg-black border border-zinc-800 rounded text-[#5ADCC8]">
@@ -972,43 +1085,67 @@ export default function OSCommandCenterPage() {
 
                 <div className="grid grid-cols-2 gap-3 text-xs">
                   <div className="p-3 bg-black border border-zinc-800 rounded">
-                    <div className="text-zinc-400 font-mono text-[11px]">1. Junior Tech Cohort Enrollment</div>
+                    <div className="text-zinc-400 font-mono text-[11px]">
+                      1. Active Graduated Techs (L1/L2/L3)
+                    </div>
                     <div className="text-lg font-black text-white mt-0.5">
-                      {juniorTechsInProgram} Trainees Enrolled
+                      {graduatedTechsCount} Active (L1: 1 · L2: 1 · L3: 2)
                     </div>
-                    <div className="text-[11px] text-[#5ADCC8] font-mono">
-                      Cohort 02: Classroom/Bench + Shadow Rides
-                    </div>
-                  </div>
-                  <div className="p-3 bg-black border border-zinc-800 rounded">
-                    <div className="text-zinc-400 font-mono text-[11px]">2. Graduation &amp; Div 01 Foundry Track</div>
-                    <div className="text-lg font-black text-[#5ADCC8] mt-0.5">
-                      {graduatedTechsCount} Graduated · {div1MentorshipCount} Foundry Track
-                    </div>
-                    <div className="text-[11px] text-zinc-300 font-mono">
-                      Top graduates recruited to Division 01 Mentorship
-                    </div>
-                  </div>
-                  <div className="p-3 bg-black border border-zinc-800 rounded">
-                    <div className="text-zinc-400 font-mono text-[11px]">3. Certified Techs by Tier</div>
-                    <div className="text-lg font-black text-white mt-0.5">L1: 1 · L2: 1 · L3: 2</div>
                     <div className="text-[11px] text-[#5ADCC8] font-mono">
                       L1 PM/Swap · L2 EPA 608 · L3 Master/Foundry
                     </div>
                   </div>
                   <div className="p-3 bg-black border border-zinc-800 rounded">
-                    <div className="text-zinc-400 font-mono text-[11px]">4. Claim Rate &amp; Time-to-Claim</div>
-                    <div className="text-lg font-black text-white mt-0.5">91.7% Claim · 1.1h Avg</div>
-                    <div className="text-[11px] text-[#5ADCC8] font-mono">4.8 Jobs / Tech / Week</div>
+                    <div className="text-zinc-400 font-mono text-[11px]">
+                      2. 3JI-Repair Trainees Enrolled
+                    </div>
+                    <div className="text-lg font-black text-white mt-0.5">
+                      {traineesInPipeline} Enrolled · 3 Qtr Graduations
+                    </div>
+                    <div className="text-[11px] text-[#5ADCC8] font-mono">
+                      Cohort 02: Vocational Bench &amp; Shadow Swaps
+                    </div>
                   </div>
                   <div className="p-3 bg-black border border-zinc-800 rounded">
-                    <div className="text-zinc-400 font-mono text-[11px]">5. Quality Rating &amp; Callback Rate</div>
-                    <div className="text-lg font-black text-white mt-0.5">4.85 ★ · 2.4% Callback</div>
-                    <div className="text-[11px] text-[#5ADCC8] font-mono">Targets: Rating ≥ 4.7 · Callback ≤ 5%</div>
+                    <div className="text-zinc-400 font-mono text-[11px]">
+                      3. Recruited to Div 01 Mentorship
+                    </div>
+                    <div className="text-lg font-black text-[#5ADCC8] mt-0.5">
+                      {div1MentorshipCount} Recruited (66.7%)
+                    </div>
+                    <div className="text-[11px] text-zinc-300 font-mono">
+                      Top graduates trained toward Division 01 Foundry
+                    </div>
                   </div>
                   <div className="p-3 bg-black border border-zinc-800 rounded">
-                    <div className="text-zinc-400 font-mono text-[11px]">6. Marketplace Take-Rate Revenue</div>
-                    <div className="text-lg font-black text-[#5ADCC8] mt-0.5">$289 Fee / $1,286 Net</div>
+                    <div className="text-zinc-400 font-mono text-[11px]">
+                      4. Unfulfilled &amp; Escalations to Jason
+                    </div>
+                    <div className="text-lg font-black text-[#5ADCC8] mt-0.5">
+                      {unclaimedJobsCount} Open · {escalatedJobsCount} Escalated to Jason
+                    </div>
+                    <div className="text-[11px] text-zinc-300 font-mono">
+                      Module 1 Rule: 1h Emerg / 2h Widen / 4h → Jason
+                    </div>
+                  </div>
+                  <div className="p-3 bg-black border border-zinc-800 rounded">
+                    <div className="text-zinc-400 font-mono text-[11px]">
+                      5. Jobs/Tech/Wk, Rating &amp; Callbacks
+                    </div>
+                    <div className="text-lg font-black text-white mt-0.5">
+                      4.8/wk · 4.85 ★ · 2.4% Callback
+                    </div>
+                    <div className="text-[11px] text-[#5ADCC8] font-mono">
+                      Targets: Rating ≥ 4.7 · Callback ≤ 5%
+                    </div>
+                  </div>
+                  <div className="p-3 bg-black border border-zinc-800 rounded">
+                    <div className="text-zinc-400 font-mono text-[11px]">
+                      6. Tech Payout Totals (15% / 20%)
+                    </div>
+                    <div className="text-lg font-black text-[#5ADCC8] mt-0.5">
+                      $1,286 Net Payouts ($289 Fee)
+                    </div>
                     <div className="text-[11px] text-zinc-300 font-mono">
                       Strictly 15% Network / 20% Hub (Never 25–30%)
                     </div>
@@ -1016,7 +1153,7 @@ export default function OSCommandCenterPage() {
                 </div>
               </div>
 
-              {/* SECTION D — Pipeline & Financials */}
+              {/* SECTION D — Pipeline & Financials (ALL Financials Live in OS) */}
               <div
                 data-testid="scorecard-section-d"
                 className="bg-zinc-950 border border-zinc-800 rounded p-5 space-y-4"
@@ -1024,12 +1161,15 @@ export default function OSCommandCenterPage() {
                 <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
                   <div>
                     <span className="text-[10px] font-mono uppercase text-[#5ADCC8] font-bold">
-                      Scorecard Section D · Seeded Prospect Lists &amp; Financials
+                      Scorecard Section D · ALL Company &amp; 3JI-Repair Financials Live in OS
                     </span>
                     <h3 className="text-base font-black uppercase tracking-wide text-white">
                       D. Pipeline &amp; Financials (515 Bars/Restaurants · 501 Industrial)
                     </h3>
                   </div>
+                  <span className="text-[10px] font-mono px-2 py-1 bg-[#5ADCC8]/15 border border-[#5ADCC8]/40 rounded text-[#5ADCC8]">
+                    OS Exclusive Financials
+                  </span>
                 </div>
 
                 {/* Seeded Prospect Funnels */}
@@ -1037,7 +1177,7 @@ export default function OSCommandCenterPage() {
                   <div className="p-3 bg-black border border-zinc-800 rounded">
                     <div className="flex items-center justify-between mb-1">
                       <span className="font-bold text-white">
-                        Division 02 Outreach Funnel: 515 Cuyahoga County Bars &amp; Restaurants
+                        3JI-Repair Outreach Funnel: 515 Cuyahoga County Bars &amp; Restaurants
                       </span>
                       <span className="font-mono text-[#5ADCC8] font-bold">total_targets: 515</span>
                     </div>
@@ -1061,7 +1201,7 @@ export default function OSCommandCenterPage() {
                         </div>
                       </div>
                       <div className="p-1.5 bg-zinc-950 border border-[#5ADCC8]/50 rounded">
-                        <div className="text-[#5ADCC8]">Closed Active</div>
+                        <div className="text-[#5ADCC8]">Customer</div>
                         <div className="text-white font-bold">
                           {state.pipeline_funnel.cuyahoga_bars_restaurants.active_customers}
                         </div>
@@ -1093,13 +1233,13 @@ export default function OSCommandCenterPage() {
                         </div>
                       </div>
                       <div className="p-1.5 bg-zinc-950 border border-zinc-800 rounded">
-                        <div className="text-zinc-400">Quote Requests</div>
+                        <div className="text-zinc-400">Quoted</div>
                         <div className="text-[#5ADCC8] font-bold">
                           {state.pipeline_funnel.industrial_targets.quoted}
                         </div>
                       </div>
                       <div className="p-1.5 bg-zinc-950 border border-[#5ADCC8]/50 rounded">
-                        <div className="text-[#5ADCC8]">Active Accounts</div>
+                        <div className="text-[#5ADCC8]">Customer</div>
                         <div className="text-white font-bold">
                           {state.pipeline_funnel.industrial_targets.active_accounts}
                         </div>
@@ -1107,22 +1247,32 @@ export default function OSCommandCenterPage() {
                     </div>
                   </div>
 
-                  {/* Cash Collected vs Open AR & Margin by Stream */}
+                  {/* Complete Division 01 & 3JI-Repair Revenue, Margin & AR Aging */}
                   <div className="grid grid-cols-2 gap-3">
                     <div className="p-3 bg-black border border-zinc-800 rounded">
-                      <div className="text-zinc-400 font-mono text-[11px]">Cash Collected vs Open A/R</div>
+                      <div className="text-zinc-400 font-mono text-[11px]">
+                        Revenue by Division (MTD / QTD) &amp; AR Aging
+                      </div>
                       <div className="text-sm font-black text-white mt-1">
-                        $24,490 MTD · $92,600 QTD Collected
+                        $34,130 MTD ($24,490 D1 · $9,640 3JI-Repair)
                       </div>
                       <div className="text-[11px] text-[#5ADCC8] font-mono mt-0.5">
-                        Open A/R: $13,015 ($8,420 0–30d · $4,595 31–60d)
+                        QTD: $92,600 · Open AR: $13,015 ($8,420 0–30d · $4,595 31–60d)
                       </div>
                     </div>
                     <div className="p-3 bg-black border border-zinc-800 rounded">
-                      <div className="text-zinc-400 font-mono text-[11px]">Gross Margin by Stream</div>
+                      <div className="text-zinc-400 font-mono text-[11px]">
+                        Gross Margin by Division (OS Financial Ledger)
+                      </div>
                       <div className="text-[11px] font-mono text-zinc-200 mt-1 space-y-0.5">
-                        <div>• Parts (+35%/+25%): <strong className="text-[#5ADCC8]">28.4% GM</strong></div>
-                        <div>• Field Service &amp; Care Plans: <strong className="text-[#5ADCC8]">66.8% GM</strong></div>
+                        <div>
+                          • Div 01 Parts (+35%/+25%):{' '}
+                          <strong className="text-[#5ADCC8]">28.4% GM</strong>
+                        </div>
+                        <div>
+                          • Div 02 3JI-Repair (Service + Care Plans):{' '}
+                          <strong className="text-[#5ADCC8]">66.8% GM</strong>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1161,10 +1311,15 @@ export default function OSCommandCenterPage() {
                     <h4 className="text-xs font-black uppercase tracking-wider text-[#5ADCC8]">
                       Column A — Activity Metrics (Calls, Quotes, Swaps, Trainees)
                     </h4>
-                    <span className="text-[10px] font-mono text-zinc-400">Non-Monetary Units Only</span>
+                    <span className="text-[10px] font-mono text-zinc-400">
+                      Non-Monetary Units Only
+                    </span>
                   </div>
                   {state.targets_90_day.map((row) => {
-                    const pct = Math.min(100, Math.round((row.activity_current / row.activity_target) * 100));
+                    const pct = Math.min(
+                      100,
+                      Math.round((row.activity_current / row.activity_target) * 100)
+                    );
                     return (
                       <div key={`${row.id}-act`} className="space-y-1">
                         <div className="flex items-center justify-between text-xs">
@@ -1172,7 +1327,8 @@ export default function OSCommandCenterPage() {
                             [{row.horizon}] {row.activity_metric_label}
                           </span>
                           <span className="font-mono text-[#5ADCC8] font-bold">
-                            {row.activity_current} / {row.activity_target} {row.activity_unit} ({pct}%)
+                            {row.activity_current} / {row.activity_target} {row.activity_unit} (
+                            {pct}%)
                           </span>
                         </div>
                         <div className="w-full h-2 bg-zinc-900 rounded overflow-hidden">
@@ -1192,10 +1348,15 @@ export default function OSCommandCenterPage() {
                     <h4 className="text-xs font-black uppercase tracking-wider text-[#5ADCC8]">
                       Column B — Dollar Metrics ($) (MRR, Parts Revenue, Service Revenue)
                     </h4>
-                    <span className="text-[10px] font-mono text-zinc-400">USD ($) Revenue Only</span>
+                    <span className="text-[10px] font-mono text-zinc-400">
+                      USD ($) Revenue Only
+                    </span>
                   </div>
                   {state.targets_90_day.map((row) => {
-                    const pct = Math.min(100, Math.round((row.dollar_current / row.dollar_target) * 100));
+                    const pct = Math.min(
+                      100,
+                      Math.round((row.dollar_current / row.dollar_target) * 100)
+                    );
                     return (
                       <div key={`${row.id}-usd`} className="space-y-1">
                         <div className="flex items-center justify-between text-xs">
@@ -1203,7 +1364,8 @@ export default function OSCommandCenterPage() {
                             [{row.horizon}] {row.dollar_metric_label}
                           </span>
                           <span className="font-mono text-[#5ADCC8] font-bold">
-                            ${row.dollar_current.toLocaleString()} / ${row.dollar_target.toLocaleString()} ({pct}%)
+                            ${row.dollar_current.toLocaleString()} / $
+                            {row.dollar_target.toLocaleString()} ({pct}%)
                           </span>
                         </div>
                         <div className="w-full h-2 bg-zinc-900 rounded overflow-hidden">
@@ -1228,7 +1390,7 @@ export default function OSCommandCenterPage() {
           >
             <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
               <h3 className="text-sm font-black uppercase tracking-wider text-[#5ADCC8]">
-                + Dispatch Cuyahoga County Field Job
+                + Dispatch 3JI-Repair Cuyahoga County Field Job
               </h3>
               <button
                 type="button"
@@ -1240,7 +1402,9 @@ export default function OSCommandCenterPage() {
             </div>
             <div className="space-y-3 text-xs">
               <div>
-                <label className="block font-mono text-zinc-400 mb-1">Business Name (Placeholder)</label>
+                <label className="block font-mono text-zinc-400 mb-1">
+                  Business Name (Placeholder)
+                </label>
                 <input
                   type="text"
                   value={dispatchBiz}
@@ -1361,13 +1525,17 @@ export default function OSCommandCenterPage() {
                 <select
                   value={quoteDiv}
                   onChange={(e) =>
-                    setQuoteDiv(e.target.value as 'Division 01 — Foundry' | 'Division 02 — Commercial Equipment')
+                    setQuoteDiv(
+                      e.target.value as 'Division 01 — Foundry' | 'Division 02 — 3JI-Repair'
+                    )
                   }
                   className="w-full bg-black border border-zinc-700 rounded px-3 py-2 text-white"
                 >
-                  <option value="Division 01 — Foundry">Division 01 — Foundry Support (Nationwide)</option>
-                  <option value="Division 02 — Commercial Equipment">
-                    Division 02 — Commercial Equipment (Cuyahoga County Only)
+                  <option value="Division 01 — Foundry">
+                    Division 01 — Foundry Support (Nationwide)
+                  </option>
+                  <option value="Division 02 — 3JI-Repair">
+                    Division 02 — 3JI-Repair (Cuyahoga County Launch)
                   </option>
                 </select>
               </div>

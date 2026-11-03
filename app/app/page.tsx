@@ -4,17 +4,59 @@ import React, { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import type { PlatformState, UserRole } from '@/lib/store';
 
-const ROLES: UserRole[] = [
-  'Admin (Jason)',
-  'Tech L1',
-  'Tech L2 (EPA 608)',
-  'Tech L3 (Master / Foundry)',
-  'Junior Tech / Trainee',
-  'Customer',
+const EQUIPMENT_SCOPE_3JI_REPAIR = [
+  'Refrigerators',
+  'Coolers',
+  'Freezers',
+  'Ice Machines',
+  'HVAC',
+  'Beverage Machines',
+  'Frozen Beverage / Slushie Machines',
+  'Walk-In Coolers & Freezers',
+  'Reach-In & Undercounter Refrigeration',
+  'Display Merchandiser Cases',
+  'Ice Dispensers & Bins',
+  'Soda Fountain & Carbonation Systems',
+  'Draft Beer Systems & Glycol Chillers',
+  'Bottle Coolers & Kegerators',
+  'Juice Dispensers & Mixers',
+] as const;
+
+const ROLES: { role: UserRole; testId: string; shortLabel: string }[] = [
+  {
+    role: 'Admin (Jason / 3JI Staff)',
+    testId: 'role-btn-admin',
+    shortLabel: 'Admin (Jason / 3JI Staff)',
+  },
+  {
+    role: 'Tech L1 (Technician Portal)',
+    testId: 'role-btn-tech-l1',
+    shortLabel: 'Tech L1',
+  },
+  {
+    role: 'Tech L2 — EPA 608 (Technician Portal)',
+    testId: 'role-btn-tech-l2',
+    shortLabel: 'Tech L2 (EPA 608)',
+  },
+  {
+    role: 'Tech L3 — Master / Foundry (Technician Portal)',
+    testId: 'role-btn-tech-l3',
+    shortLabel: 'Tech L3 (Master / Foundry)',
+  },
+  {
+    role: '3JI-Repair Trainee',
+    testId: 'role-btn-3ji-repair-trainee',
+    shortLabel: '3JI-Repair Trainee',
+  },
+  {
+    role: 'Customer (Customer Portal)',
+    testId: 'role-btn-customer',
+    shortLabel: 'Customer',
+  },
 ];
 
 const NINE_STEPS = [
-  { step: 1, title: '1. Intake & Claim Breakdown', desc: 'Breakdown posted on Cuyahoga map; tech claims job.' },
+  { step: 1, title: '1. Intake & Claim Breakdown', desc: 'Breakdown posted on Cuyahoga map; tech claims opportunity.' },
   {
     step: 2,
     title: '2. Eligibility & Pricing Check',
@@ -47,8 +89,8 @@ const NINE_STEPS = [
 
 export default function FieldOperationsAppPage() {
   const [state, setState] = useState<PlatformState | null>(null);
-  const [activeRole, setActiveRole] = useState<UserRole>('Admin (Jason)');
-  const [activeTraineeId, setActiveTraineeId] = useState<string>('TECH-04');
+  const [activeRole, setActiveRole] = useState<UserRole>('Admin (Jason / 3JI Staff)');
+  const [activeTraineeId] = useState<string>('TECH-04');
   const [toast, setToast] = useState<string | null>(null);
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
 
@@ -65,8 +107,8 @@ export default function FieldOperationsAppPage() {
   const [invTab, setInvTab] = useState<'ALL' | 'DIV1' | 'DIV2' | 'LOANERS'>('ALL');
 
   // Module 4 Quote Generator State
-  const [qDivision, setQDivision] = useState<'Division 01 — Foundry' | 'Division 02 — Commercial Equipment'>(
-    'Division 02 — Commercial Equipment'
+  const [qDivision, setQDivision] = useState<'Division 01 — Foundry' | 'Division 02 — 3JI-Repair'>(
+    'Division 02 — 3JI-Repair'
   );
   const [qBusinessName, setQBusinessName] = useState('[Bar Account Placeholder #01 — Lakewood Patio & Tap]');
   const [qMachine, setQMachine] = useState('Twin-Bowl Frozen Beverage / Slushie Machine');
@@ -88,11 +130,11 @@ export default function FieldOperationsAppPage() {
   );
   const [qLoanerDays, setQLoanerDays] = useState<number>(3);
   const [qDrinksPerDay, setQDrinksPerDay] = useState<number>(60);
-  const [qDaysDown, setQDaysDown] = useState<number>(4);
+  const [qDaysDown] = useState<number>(4);
 
   // Module 5 Mobile Work Booking State
-  const [bkDivision, setBkDivision] = useState<'Division 02 — Commercial Equipment' | 'Division 01 — Foundry'>(
-    'Division 02 — Commercial Equipment'
+  const [bkDivision, setBkDivision] = useState<'Division 02 — 3JI-Repair' | 'Division 01 — Foundry'>(
+    'Division 02 — 3JI-Repair'
   );
   const [bkBusiness, setBkBusiness] = useState('[Bar Placeholder — Tremont Frozen Cocktail Co.]');
   const [bkAddress, setBkAddress] = useState('2100 Professor Ave [Placeholder]');
@@ -100,13 +142,56 @@ export default function FieldOperationsAppPage() {
   const [bkState, setBkState] = useState('OH');
   const [bkZip, setBkZip] = useState('44113');
   const [bkCounty, setBkCounty] = useState('Cuyahoga');
-  const [bkMachine, setBkMachine] = useState('Frozen Beverage / Slushie Machine (Twin-Bowl)');
+  const [bkMachine, setBkMachine] = useState<string>(EQUIPMENT_SCOPE_3JI_REPAIR[6]);
   const [bkSerial, setBkSerial] = useState('SN-FB-9012');
   const [bkSymptom, setBkSymptom] = useState('Bowl #2 not freezing to slush consistency; loaner requested');
   const [bkWindow, setBkWindow] = useState('Today 2:00 PM – 4:00 PM (Priority)');
   const [bkCarePlan, setBkCarePlan] = useState(true);
   const [bkFlagJason, setBkFlagJason] = useState(true);
   const [bookingResultMsg, setBookingResultMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  // Module 7 Portals & Support Docs State
+  const [activePortalTab, setActivePortalTab] = useState<'CUSTOMER' | 'TECH' | 'STAFF'>('STAFF');
+  const [selectedPortalCustomerId, setSelectedPortalCustomerId] = useState<string>('CUST-D2-01');
+  const [selectedPortalTechId, setSelectedPortalTechId] = useState<string>('TECH-02');
+  const [selectedDocCategoryFilter, setSelectedDocCategoryFilter] = useState<string>('ALL');
+
+  // 3JI Staff Portal — New Customer Setup Form State
+  const [newCustName, setNewCustName] = useState('[New Account Placeholder — Ohio City Taproom & Kitchen]');
+  const [newCustAddress, setNewCustAddress] = useState('2510 Bridge Ave, Cleveland, OH 44113 [Placeholder]');
+  const [newCustCity, setNewCustCity] = useState('Cleveland');
+  const [newCustZip, setNewCustZip] = useState('44113');
+  const [newCustContact, setNewCustContact] = useState('Bar GM [Placeholder] · 216-555-0144');
+  const [newCustPlanTier, setNewCustPlanTier] = useState<
+    'None' | 'Single-Machine ($79–99/mo)' | 'Multi-Machine Location ($149–199/mo)'
+  >('Multi-Machine Location ($149–199/mo)');
+  const [newCustTerms, setNewCustTerms] = useState(
+    '12-Month 3JI-Repair Multi-Machine Care Plan ($179/mo) · $0 Loaner Swaps · Quarterly OAC 3717-1-08.1 Sanitize'
+  );
+  const [newCustAssets, setNewCustAssets] = useState<
+    { equipment_type: string; make_model: string; serial_number: string; location_label: string }[]
+  >([
+    {
+      equipment_type: 'Frozen Beverage / Slushie Machines',
+      make_model: 'Twin-Bowl Frozen Beverage Dispenser 2x12L',
+      serial_number: 'SN-FB-8801',
+      location_label: 'Main Patio Bar',
+    },
+    {
+      equipment_type: 'Ice Machines',
+      make_model: 'Commercial Modular Cube Ice Maker 500 lb',
+      serial_number: 'SN-ICE-8802',
+      location_label: 'Service Prep Kitchen',
+    },
+  ]);
+
+  // 3JI Staff Portal — Support Docs Upload Form State
+  const [docTitle, setDocTitle] = useState('Twin-Bowl Slushie Auger Seal & Brix Service Manual');
+  const [docEquipType, setDocEquipType] = useState<string>('Frozen Beverage / Slushie Machines');
+  const [docFileName, setDocFileName] = useState('3ji-slushie-auger-seal-manual.pdf');
+  const [docNotes, setDocNotes] = useState(
+    'OAC 3717-1-08.1 teardown sequence, rear seal lubrication, and 13–15° Brix calibration guide.'
+  );
 
   const fetchState = useCallback(async () => {
     const res = await fetch('/api/state', { cache: 'no-store' });
@@ -147,17 +232,16 @@ export default function FieldOperationsAppPage() {
 
   // Determine current role's claim permissions for a job
   const evaluateJobClaimPermission = (job: PlatformState['jobs'][0]) => {
-    if (activeRole === 'Customer') {
-      return { canClaim: false, reason: 'Customer Intake View Only (No Tech Claim Rights)' };
+    if (activeRole === 'Customer (Customer Portal)') {
+      return { canClaim: false, reason: 'Customer Portal View Only (No Tech Claim Rights)' };
     }
-    if (activeRole === 'Junior Tech / Trainee') {
+    if (activeRole === '3JI-Repair Trainee') {
       if (!activeTrainee.can_claim_solo) {
         return {
           canClaim: false,
-          reason: 'Junior Tech Program Gate: Shadow Ride Only until Jason signs off L1 Graduation',
+          reason: '3JI-Repair Trainee Gate: Shadow Ride Only until Jason signs off L1 Graduation',
         };
       }
-      // Graduated trainee is now L1 — PM / Swap!
       if (job.required_level !== 'L1') {
         return {
           canClaim: false,
@@ -169,7 +253,7 @@ export default function FieldOperationsAppPage() {
       }
       return { canClaim: true, reason: 'Graduated to L1 — Solo Claim Unlocked!' };
     }
-    if (activeRole === 'Tech L1') {
+    if (activeRole === 'Tech L1 (Technician Portal)') {
       if (job.required_level !== 'L1') {
         return { canClaim: false, reason: `Skill Gate: Requires ${job.required_level} Certification` };
       }
@@ -178,23 +262,23 @@ export default function FieldOperationsAppPage() {
       }
       return { canClaim: true, reason: 'Eligible (L1 — PM / Swap)' };
     }
-    if (activeRole === 'Tech L2 (EPA 608)') {
+    if (activeRole === 'Tech L2 — EPA 608 (Technician Portal)') {
       if (job.required_level === 'L3') {
         return { canClaim: false, reason: 'Skill Gate: Requires L3 Master / Foundry Tech' };
       }
       return { canClaim: true, reason: 'Eligible (L2 Sealed System / EPA 608 Verified)' };
     }
-    // Admin (Jason) or Tech L3 (Master / Foundry)
+    // Admin (Jason / 3JI Staff) or Tech L3 — Master / Foundry (Technician Portal)
     return { canClaim: true, reason: 'Eligible (L3 Master / Foundry Authority)' };
   };
 
   const handleClaimJob = async (jobId: string) => {
     const techIdForClaim =
-      activeRole === 'Junior Tech / Trainee'
+      activeRole === '3JI-Repair Trainee'
         ? activeTrainee.id
-        : activeRole === 'Tech L1'
+        : activeRole === 'Tech L1 (Technician Portal)'
         ? 'TECH-03'
-        : activeRole === 'Tech L2 (EPA 608)'
+        : activeRole === 'Tech L2 — EPA 608 (Technician Portal)'
         ? 'TECH-02'
         : 'TECH-01';
 
@@ -214,7 +298,7 @@ export default function FieldOperationsAppPage() {
       return;
     }
     setState(data.state);
-    notify(`Job ${jobId} claimed under role ${activeRole}!`);
+    notify(`Opportunity ${jobId} claimed under role ${activeRole}!`);
   };
 
   const handleRequestShadowRide = async (jobId: string) => {
@@ -231,6 +315,22 @@ export default function FieldOperationsAppPage() {
     if (data.state) {
       setState(data.state);
       notify(`Shadow Ride requested on ${jobId} for ${activeTrainee.name}.`);
+    }
+  };
+
+  const handleScheduleJasonOnOpportunity = async (jobId: string) => {
+    const res = await fetch('/api/state', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'schedule_jason_on_opportunity',
+        job_id: jobId,
+      }),
+    });
+    const data = await res.json();
+    if (data.state) {
+      setState(data.state);
+      notify(`Scheduled Jason Allen onto opportunity ${jobId} per Module 1 Customer-Retention Rule!`);
     }
   };
 
@@ -356,7 +456,7 @@ export default function FieldOperationsAppPage() {
     ? 199
     : 0;
   const grandTotalQuote = Math.max(0, diagFee + diagCredit + laborTotal + partLineTotal + loanerTotal);
-  const dailyDowntimeLoss = Math.round((qDrinksPerDay * 2.72 * 0.6)); // ~60 drinks/day * ~$2.72/drink contribution ≈ $98/day
+  const dailyDowntimeLoss = Math.round(qDrinksPerDay * 2.72 * 0.6);
   const exactSpecDailyLoss = qDrinksPerDay === 60 ? 98 : dailyDowntimeLoss;
   const totalDowntimeLoss = exactSpecDailyLoss * qDaysDown;
 
@@ -369,7 +469,7 @@ export default function FieldOperationsAppPage() {
         division: qDivision,
         business_name: qBusinessName,
         city_state:
-          qDivision === 'Division 02 — Commercial Equipment'
+          qDivision === 'Division 02 — 3JI-Repair'
             ? 'Cuyahoga County, OH'
             : 'Nationwide Foundry Support (USA)',
         system_or_machine: qMachine,
@@ -443,7 +543,7 @@ export default function FieldOperationsAppPage() {
     } else {
       setBookingResultMsg({
         ok: true,
-        text: `Booking ${data.booking.id} confirmed! Estimate within 24 hours. Posted to Dispatch Map.`,
+        text: `Booking ${data.booking.id} confirmed! Estimate within 24 hours. Posted to 3JI-Repair Dispatch Map.`,
       });
       notify(`Booking ${data.booking.id} scheduled!`);
     }
@@ -475,6 +575,66 @@ export default function FieldOperationsAppPage() {
     }
   };
 
+  const handleAddNewAssetRow = () => {
+    setNewCustAssets((prev) => [
+      ...prev,
+      {
+        equipment_type: 'Walk-In Coolers & Freezers',
+        make_model: 'Commercial Walk-In Cooler Box',
+        serial_number: `SN-WIC-${Math.floor(1000 + Math.random() * 8999)}`,
+        location_label: 'Back Bar Storage',
+      },
+    ]);
+  };
+
+  const handleCreateCustomerSetup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const res = await fetch('/api/state', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'create_customer_setup',
+        business_name: newCustName,
+        address: newCustAddress,
+        city: newCustCity,
+        zip: newCustZip,
+        contact_info: newCustContact,
+        plan_tier: newCustPlanTier,
+        terms: newCustTerms,
+        assets: newCustAssets,
+      }),
+    });
+    const data = await res.json();
+    if (data.state && data.customer) {
+      setState(data.state);
+      setSelectedPortalCustomerId(data.customer.id);
+      notify(
+        `Customer ${data.customer.business_name} (${data.customer.id}) created with ${newCustAssets.length} equipment assets!`
+      );
+    }
+  };
+
+  const handleUploadSupportDoc = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const res = await fetch('/api/state', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'upload_support_doc',
+        title: docTitle,
+        equipment_type: docEquipType,
+        file_name: docFileName,
+        file_notes: docNotes,
+        uploaded_by: 'Jason Allen (3JI Staff Portal)',
+      }),
+    });
+    const data = await res.json();
+    if (data.state && data.doc) {
+      setState(data.state);
+      notify(`Uploaded "${data.doc.title}" (${data.doc.equipment_type}) to Support Docs Library!`);
+    }
+  };
+
   // Filtered jobs for Module 1 (Care Plan jobs surface first per spec)
   const filteredJobs = state.jobs
     .filter((j) => {
@@ -491,6 +651,40 @@ export default function FieldOperationsAppPage() {
       return bPlan - aPlan;
     });
 
+  // Portal selections
+  const selectedPortalCustomer =
+    state.customers.find((c) => c.id === selectedPortalCustomerId) || state.customers[0];
+  const selectedCustomerMachines = state.machines.filter(
+    (m) => m.customer_id === selectedPortalCustomer.id
+  );
+  const selectedCustomerJobs = state.jobs.filter(
+    (j) =>
+      j.customer_id === selectedPortalCustomer.id ||
+      j.business_name === selectedPortalCustomer.business_name
+  );
+  const selectedCustomerQuotes = state.quotes.filter(
+    (q) =>
+      q.customer_id === selectedPortalCustomer.id ||
+      q.business_name === selectedPortalCustomer.business_name
+  );
+
+  const selectedPortalTech =
+    state.techs.find((t) => t.id === selectedPortalTechId) || state.techs[1];
+  const matchedOpportunitiesForTech = state.jobs.filter(
+    (j) =>
+      j.status === 'Unclaimed' &&
+      (selectedPortalTech.job_types.includes(j.equipment_category) ||
+        selectedPortalTech.level.includes('L3') ||
+        selectedPortalTech.level.includes('L2'))
+  );
+  const selectedTechPayouts = state.payouts.filter(
+    (p) => p.tech_id === selectedPortalTech.id
+  );
+
+  const filteredSupportDocs = state.support_docs.filter(
+    (d) => selectedDocCategoryFilter === 'ALL' || d.equipment_type === selectedDocCategoryFilter
+  );
+
   return (
     <div className="min-h-screen bg-black text-white flex flex-col">
       {/* Top Bar with Role Switcher */}
@@ -505,14 +699,14 @@ export default function FieldOperationsAppPage() {
             <div>
               <div className="flex items-center gap-2">
                 <span className="font-black tracking-wider uppercase text-white text-sm md:text-base">
-                  3J Industrial Parts — Field App
+                  3J Industrial Parts — Field App &amp; Portals
                 </span>
                 <span className="text-[11px] font-mono uppercase px-2 py-0.5 rounded bg-[#5ADCC8]/15 text-[#5ADCC8] border border-[#5ADCC8]/40">
                   app.3jindustrialparts.com
                 </span>
               </div>
               <div className="text-[11px] font-bold tracking-widest uppercase text-[#5ADCC8]">
-                SPARE PARTS | SERVICES | CONSULTING · Division 02: CUYAHOGA COUNTY, OHIO ONLY · 216-906-2252
+                SPARE PARTS | SERVICES | CONSULTING · Division 02 (3JI-Repair): CUYAHOGA COUNTY, OHIO ONLY · 216-906-2252
               </div>
             </div>
           </div>
@@ -520,18 +714,24 @@ export default function FieldOperationsAppPage() {
           {/* Role Switcher */}
           <div className="flex flex-wrap items-center gap-2">
             <label htmlFor="role-select" className="text-xs font-mono text-zinc-400">
-              Active Role:
+              Active Portal / Role:
             </label>
             <select
               id="role-select"
               data-testid="role-switcher"
               value={activeRole}
-              onChange={(e) => setActiveRole(e.target.value as UserRole)}
+              onChange={(e) => {
+                const nextRole = e.target.value as UserRole;
+                setActiveRole(nextRole);
+                if (nextRole === 'Customer (Customer Portal)') setActivePortalTab('CUSTOMER');
+                else if (nextRole === 'Admin (Jason / 3JI Staff)') setActivePortalTab('STAFF');
+                else setActivePortalTab('TECH');
+              }}
               className="bg-zinc-900 border border-[#5ADCC8] text-[#5ADCC8] font-bold text-xs rounded px-3 py-1.5 font-mono"
             >
               {ROLES.map((r) => (
-                <option key={r} value={r}>
-                  {r}
+                <option key={r.role} value={r.role}>
+                  {r.role}
                 </option>
               ))}
             </select>
@@ -552,17 +752,22 @@ export default function FieldOperationsAppPage() {
             <span className="text-[11px] font-mono text-zinc-400 mr-1">Quick Role Gate Test:</span>
             {ROLES.map((r) => (
               <button
-                key={r}
+                key={r.role}
                 type="button"
-                data-testid={`role-btn-${r.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
-                onClick={() => setActiveRole(r)}
+                data-testid={r.testId}
+                onClick={() => {
+                  setActiveRole(r.role);
+                  if (r.role === 'Customer (Customer Portal)') setActivePortalTab('CUSTOMER');
+                  else if (r.role === 'Admin (Jason / 3JI Staff)') setActivePortalTab('STAFF');
+                  else setActivePortalTab('TECH');
+                }}
                 className={`px-2.5 py-1 rounded text-[11px] font-mono transition cursor-pointer ${
-                  activeRole === r
+                  activeRole === r.role
                     ? 'bg-[#5ADCC8] text-black font-black'
                     : 'bg-zinc-900 text-zinc-300 hover:text-white border border-zinc-800'
                 }`}
               >
-                {r}
+                {r.shortLabel}
               </button>
             ))}
           </div>
@@ -572,7 +777,7 @@ export default function FieldOperationsAppPage() {
             className="text-[11px] font-mono text-[#5ADCC8]"
           >
             Mode: <strong>{activeRole}</strong>
-            {activeRole === 'Junior Tech / Trainee' && (
+            {activeRole === '3JI-Repair Trainee' && (
               <span>
                 {' '}
                 · Profile: {activeTrainee.name} (Solo Claim:{' '}
@@ -608,10 +813,838 @@ export default function FieldOperationsAppPage() {
         </div>
       )}
 
-      {/* Main Content Container: All 6 Field App Modules */}
+      {/* Main Content Container: All 7 Field App Modules */}
       <main className="max-w-7xl mx-auto w-full px-4 py-6 space-y-10">
         {/* =====================================================================
-            MODULE 1: CUYAHOGA COUNTY JOB MAP & ROLE-GATED JOB CLAIMING
+            MODULE 7 (FEATURED TOP): PORTALS & SUPPORT DOCS (CUSTOMER · TECHNICIAN · 3JI STAFF)
+           ===================================================================== */}
+        <section
+          id="module-portals-support-docs"
+          data-testid="module-portals-support-docs"
+          aria-label="Module 7: Portals & Support Docs (Customer · Technician · 3JI Staff)"
+          className="bg-zinc-950 border-2 border-[#5ADCC8] rounded p-6 space-y-5"
+        >
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-800 pb-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-0.5 text-[11px] font-mono font-bold uppercase bg-[#5ADCC8] text-black rounded">
+                  Module 7 · Three Portals &amp; Support Docs
+                </span>
+                <h2 className="text-lg md:text-xl font-black uppercase tracking-wider text-white">
+                  Customer Portal · Technician Portal · 3JI Staff Portal &amp; Support Docs Library
+                </h2>
+              </div>
+              <p className="text-xs text-zinc-400 mt-1">
+                3JI-Repair is a named service of <strong className="text-white">3J Industrial Parts LLC</strong> (launch area: <strong className="text-[#5ADCC8]">Cuyahoga County, OH</strong>). All company &amp; 3JI-Repair financials live exclusively in the <strong className="text-[#5ADCC8]">OS Command Center (/os)</strong> — portals below carry only operational records and each tech&apos;s own payout summary (15% / 20%).
+              </p>
+            </div>
+
+            {/* Portal Switcher Tabs */}
+            <div className="flex flex-wrap items-center gap-2 text-xs font-mono">
+              <button
+                type="button"
+                data-testid="portal-tab-customer"
+                onClick={() => setActivePortalTab('CUSTOMER')}
+                className={`px-3.5 py-2 rounded font-bold uppercase cursor-pointer transition ${
+                  activePortalTab === 'CUSTOMER'
+                    ? 'bg-[#5ADCC8] text-black font-black'
+                    : 'bg-black text-zinc-300 border border-zinc-800 hover:border-[#5ADCC8]'
+                }`}
+              >
+                1. Customer Portal
+              </button>
+              <button
+                type="button"
+                data-testid="portal-tab-technician"
+                onClick={() => setActivePortalTab('TECH')}
+                className={`px-3.5 py-2 rounded font-bold uppercase cursor-pointer transition ${
+                  activePortalTab === 'TECH'
+                    ? 'bg-[#5ADCC8] text-black font-black'
+                    : 'bg-black text-zinc-300 border border-zinc-800 hover:border-[#5ADCC8]'
+                }`}
+              >
+                2. Technician Portal
+              </button>
+              <button
+                type="button"
+                data-testid="portal-tab-staff"
+                onClick={() => setActivePortalTab('STAFF')}
+                className={`px-3.5 py-2 rounded font-bold uppercase cursor-pointer transition ${
+                  activePortalTab === 'STAFF'
+                    ? 'bg-[#5ADCC8] text-black font-black'
+                    : 'bg-black text-zinc-300 border border-zinc-800 hover:border-[#5ADCC8]'
+                }`}
+              >
+                3. 3JI Staff Portal (Jason / Staff)
+              </button>
+            </div>
+          </div>
+
+          {/* -----------------------------------------------------------------
+              PORTAL 1: CUSTOMER PORTAL
+             ----------------------------------------------------------------- */}
+          {activePortalTab === 'CUSTOMER' && (
+            <div data-testid="portal-customer" className="space-y-5">
+              <div className="flex flex-wrap items-center justify-between gap-3 bg-black border border-zinc-800 rounded p-4">
+                <div>
+                  <div className="text-xs font-mono uppercase text-[#5ADCC8] font-bold">
+                    Customer Portal — Multi-Asset Equipment Roster, Contract Terms &amp; Service Status
+                  </div>
+                  <div className="text-base font-black text-white mt-0.5">
+                    {selectedPortalCustomer.business_name} ({selectedPortalCustomer.id})
+                  </div>
+                  <div className="text-xs text-zinc-400 font-mono mt-0.5">
+                    Contact: {selectedPortalCustomer.contact_Placeholder} · City: {selectedPortalCustomer.city},{' '}
+                    {selectedPortalCustomer.state} {selectedPortalCustomer.zip} ({selectedPortalCustomer.county} County)
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 text-xs font-mono">
+                  <label htmlFor="portal-customer-select" className="text-zinc-400">
+                    Select Customer Account:
+                  </label>
+                  <select
+                    id="portal-customer-select"
+                    data-testid="portal-customer-select"
+                    value={selectedPortalCustomer.id}
+                    onChange={(e) => setSelectedPortalCustomerId(e.target.value)}
+                    className="bg-zinc-900 border border-[#5ADCC8] text-[#5ADCC8] font-bold rounded px-3 py-1.5"
+                  >
+                    {state.customers.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.id} — {c.business_name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+                {/* Contract Info & Locations */}
+                <div
+                  data-testid="customer-contract-info"
+                  className="lg:col-span-5 bg-black border border-zinc-800 rounded p-4 space-y-3 text-xs"
+                >
+                  <div className="text-xs font-black uppercase text-[#5ADCC8] border-b border-zinc-800 pb-2">
+                    Contract Information &amp; Service Locations
+                  </div>
+                  <div>
+                    <span className="text-zinc-400 font-mono">Care Plan Tier: </span>
+                    <strong className="text-white">{selectedPortalCustomer.contract_info.plan_tier}</strong>
+                  </div>
+                  <div>
+                    <span className="text-zinc-400 font-mono">Contract Terms: </span>
+                    <span className="text-zinc-200">{selectedPortalCustomer.contract_info.terms}</span>
+                  </div>
+                  <div>
+                    <span className="text-zinc-400 font-mono">PM Schedule: </span>
+                    <span className="text-[#5ADCC8] font-mono">
+                      {selectedPortalCustomer.contract_info.auto_pm_schedule}
+                    </span>
+                  </div>
+                  <div className="pt-2 border-t border-zinc-900">
+                    <div className="text-zinc-400 font-mono mb-1">Registered Service Locations:</div>
+                    <ul className="space-y-1">
+                      {selectedPortalCustomer.locations.map((loc, idx) => (
+                        <li key={idx} className="font-mono text-zinc-200 bg-zinc-950 px-2.5 py-1.5 rounded border border-zinc-800">
+                          📍 {loc}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+
+                {/* Multiple Equipment Assets per Customer */}
+                <div
+                  data-testid="customer-assets-list"
+                  className="lg:col-span-7 bg-black border border-zinc-800 rounded p-4 space-y-3 text-xs"
+                >
+                  <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
+                    <span className="text-xs font-black uppercase text-[#5ADCC8]">
+                      Customer Equipment Assets ({selectedCustomerMachines.length} Registered Units)
+                    </span>
+                    <span className="text-[11px] font-mono text-zinc-400">
+                      15-Item 3JI-Repair Equipment Scope
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {selectedCustomerMachines.map((mach) => (
+                      <div
+                        key={mach.id}
+                        data-testid={`customer-asset-${mach.id}`}
+                        className="p-3 rounded bg-zinc-950 border border-zinc-800 space-y-1"
+                      >
+                        <div className="flex items-center justify-between font-mono">
+                          <span className="font-bold text-[#5ADCC8]">{mach.id}</span>
+                          <span className="px-2 py-0.5 rounded bg-black border border-zinc-700 text-[10px] text-white">
+                            {mach.status}
+                          </span>
+                        </div>
+                        <div className="font-bold text-white">{mach.platform_or_type}</div>
+                        <div className="text-zinc-300">{mach.make_model}</div>
+                        <div className="text-[11px] font-mono text-zinc-400">
+                          SN: {mach.serial_number} · Loc: {mach.location_label}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Customer Jobs & Quotes */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                <div className="bg-black border border-zinc-800 rounded p-4 space-y-2">
+                  <div className="font-black uppercase text-[#5ADCC8]">
+                    Customer Service Opportunities / Jobs ({selectedCustomerJobs.length})
+                  </div>
+                  {selectedCustomerJobs.map((j) => (
+                    <div key={j.id} className="p-2.5 rounded bg-zinc-950 border border-zinc-800 font-mono">
+                      <div className="flex justify-between">
+                        <strong className="text-[#5ADCC8]">{j.id}</strong>
+                        <span className="text-white">{j.status}</span>
+                      </div>
+                      <div className="text-zinc-300">{j.machine_type} — {j.reported_symptom}</div>
+                    </div>
+                  ))}
+                </div>
+                <div className="bg-black border border-zinc-800 rounded p-4 space-y-2">
+                  <div className="font-black uppercase text-[#5ADCC8]">
+                    Customer Quotes &amp; Estimates ({selectedCustomerQuotes.length})
+                  </div>
+                  {selectedCustomerQuotes.map((q) => (
+                    <div key={q.id} className="p-2.5 rounded bg-zinc-950 border border-zinc-800 font-mono">
+                      <div className="flex justify-between">
+                        <strong className="text-[#5ADCC8]">{q.id}</strong>
+                        <span className="text-white">${q.total_amount.toFixed(2)} ({q.status})</span>
+                      </div>
+                      <div className="text-zinc-300">{q.system_or_machine} — {q.symptom_or_scope}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* -----------------------------------------------------------------
+              PORTAL 2: TECHNICIAN PORTAL
+             ----------------------------------------------------------------- */}
+          {activePortalTab === 'TECH' && (
+            <div data-testid="portal-technician" className="space-y-5">
+              <div className="flex flex-wrap items-center justify-between gap-3 bg-black border border-zinc-800 rounded p-4">
+                <div>
+                  <div className="text-xs font-mono uppercase text-[#5ADCC8] font-bold">
+                    Technician Portal — Skills &amp; Certs, Paired Job Types, Matched Opportunities &amp; Support Docs
+                  </div>
+                  <div className="text-base font-black text-white mt-0.5">
+                    {selectedPortalTech.name} ({selectedPortalTech.id})
+                  </div>
+                  <div className="text-xs text-zinc-400 font-mono mt-0.5">
+                    Contact: {selectedPortalTech.contact_info} · Level: <strong className="text-[#5ADCC8]">{selectedPortalTech.level}</strong> · Cohort: {selectedPortalTech.cohort}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 text-xs font-mono">
+                  <label htmlFor="portal-tech-select" className="text-zinc-400">
+                    Inspect Technician Profile:
+                  </label>
+                  <select
+                    id="portal-tech-select"
+                    data-testid="portal-tech-select"
+                    value={selectedPortalTech.id}
+                    onChange={(e) => setSelectedPortalTechId(e.target.value)}
+                    className="bg-zinc-900 border border-[#5ADCC8] text-[#5ADCC8] font-bold rounded px-3 py-1.5"
+                  >
+                    {state.techs.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.id} — {t.name} ({t.level})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 text-xs">
+                {/* Skills & Certs + Paired Job Types */}
+                <div className="lg:col-span-5 bg-black border border-zinc-800 rounded p-4 space-y-4">
+                  <div data-testid="tech-skills-certs" className="space-y-2">
+                    <div className="font-black uppercase text-[#5ADCC8] border-b border-zinc-800 pb-1.5">
+                      Verified Skills &amp; Certifications
+                    </div>
+                    <div className="font-mono text-zinc-300">
+                      EPA 608: <strong className="text-white">{selectedPortalTech.epa_608_cert_number}</strong> · COI ≥ $1M Exp:{' '}
+                      <strong className="text-white">{selectedPortalTech.coi_expiry}</strong>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {selectedPortalTech.skills_and_certs.map((sc, i) => (
+                        <span
+                          key={i}
+                          className="px-2 py-1 rounded bg-zinc-950 border border-[#5ADCC8]/50 text-[#5ADCC8] font-mono text-[11px]"
+                        >
+                          ✓ {sc}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div data-testid="tech-job-types" className="space-y-2 pt-2 border-t border-zinc-900">
+                    <div className="font-black uppercase text-[#5ADCC8]">
+                      Paired 3JI-Repair Job Types (15-Item Equipment Scope)
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {selectedPortalTech.job_types.map((jt, i) => (
+                        <span
+                          key={i}
+                          className="px-2 py-1 rounded bg-zinc-900 border border-zinc-700 text-white font-mono text-[11px]"
+                        >
+                          🔧 {jt}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Tech's Own Payout Summary (No Company Financials) */}
+                  <div
+                    data-testid="tech-own-payout-summary"
+                    className="space-y-2 pt-2 border-t border-zinc-900"
+                  >
+                    <div className="font-black uppercase text-[#5ADCC8]">
+                      My Technician Payout Summary ({selectedPortalTech.payout_tier})
+                    </div>
+                    <p className="text-[11px] text-zinc-400">
+                      Shows only this technician&apos;s own net payouts (15% Network / 20% Hub). Company-wide financials live exclusively in the OS Command Center (/os).
+                    </p>
+                    {selectedTechPayouts.length === 0 ? (
+                      <div className="p-2.5 rounded bg-zinc-950 border border-zinc-800 font-mono text-zinc-400">
+                        No completed solo payouts settled this cycle yet.
+                      </div>
+                    ) : (
+                      selectedTechPayouts.map((p) => (
+                        <div
+                          key={p.id}
+                          className="p-2.5 rounded bg-zinc-950 border border-zinc-800 font-mono flex items-center justify-between"
+                        >
+                          <span>
+                            {p.id} ({p.job_id}) · {p.tier}
+                          </span>
+                          <strong className="text-[#5ADCC8]">Net: ${p.tech_net_payout.toFixed(2)}</strong>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                {/* Opportunities Tab + Support Docs Area */}
+                <div className="lg:col-span-7 space-y-4 text-xs">
+                  {/* Matched Opportunities Feed */}
+                  <div
+                    data-testid="tech-opportunities-tab"
+                    className="bg-black border border-zinc-800 rounded p-4 space-y-3"
+                  >
+                    <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
+                      <span className="font-black uppercase text-[#5ADCC8]">
+                        Opportunities Tab — Matched Available Opportunities ({matchedOpportunitiesForTech.length})
+                      </span>
+                      <span className="font-mono text-[11px] text-zinc-400">
+                        UpShift / Amazon Flex Style Claim Feed
+                      </span>
+                    </div>
+                    {matchedOpportunitiesForTech.map((opp) => (
+                      <div
+                        key={opp.id}
+                        className="p-3 rounded bg-zinc-950 border border-zinc-800 flex flex-wrap items-center justify-between gap-2"
+                      >
+                        <div>
+                          <div className="font-mono font-bold text-[#5ADCC8]">
+                            {opp.id} · {opp.equipment_category} ({opp.urgency})
+                          </div>
+                          <div className="text-white font-bold">{opp.business_name} — {opp.city}, OH</div>
+                          <div className="text-zinc-400 font-mono text-[11px]">
+                            Req: {opp.required_level} · Split: {opp.payout_mode} · Escalation: {opp.escalation_stage}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleClaimJob(opp.id)}
+                          className="px-3 py-1.5 rounded bg-[#5ADCC8] text-black font-black uppercase text-[11px] cursor-pointer"
+                        >
+                          Claim Opportunity
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Support Docs Viewer in Technician Portal */}
+                  <div
+                    data-testid="tech-support-docs-viewer"
+                    className="bg-black border border-zinc-800 rounded p-4 space-y-3"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-800 pb-2">
+                      <div>
+                        <span className="font-black uppercase text-[#5ADCC8]">
+                          Technician Support Docs Area — PDFs by Equipment Type ({state.support_docs.length} Uploaded)
+                        </span>
+                      </div>
+                      <select
+                        aria-label="Filter Support Docs by Equipment Category"
+                        value={selectedDocCategoryFilter}
+                        onChange={(e) => setSelectedDocCategoryFilter(e.target.value)}
+                        className="bg-zinc-950 border border-zinc-700 rounded px-2.5 py-1 text-white font-mono text-[11px]"
+                      >
+                        <option value="ALL">All 15 Equipment Categories</option>
+                        {EQUIPMENT_SCOPE_3JI_REPAIR.map((cat) => (
+                          <option key={cat} value={cat}>
+                            {cat}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {filteredSupportDocs.length === 0 ? (
+                      <div
+                        data-testid="tech-support-docs-empty"
+                        className="p-4 rounded bg-zinc-950 border border-zinc-800 text-zinc-400 font-mono text-xs"
+                      >
+                        Support Docs library is currently empty (0 PDFs uploaded). Docs uploaded by Jason / 3JI Staff in the 3JI Staff Portal automatically appear here by equipment category.
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {filteredSupportDocs.map((doc) => (
+                          <div
+                            key={doc.id}
+                            data-testid={`tech-support-doc-item-${doc.id}`}
+                            className="p-3 rounded bg-zinc-950 border border-[#5ADCC8]/50 flex flex-wrap items-center justify-between gap-2"
+                          >
+                            <div>
+                              <div className="font-bold text-white">📄 {doc.title}</div>
+                              <div className="text-[11px] font-mono text-[#5ADCC8]">
+                                Category: {doc.equipment_type} · File: {doc.file_name}
+                              </div>
+                              <div className="text-[11px] text-zinc-400">{doc.file_notes}</div>
+                            </div>
+                            <span className="px-2.5 py-1 rounded bg-[#5ADCC8]/15 border border-[#5ADCC8] text-[#5ADCC8] font-mono text-[11px] font-bold">
+                              View PDF Ready
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* -----------------------------------------------------------------
+              PORTAL 3: 3JI STAFF PORTAL (JASON / DESIGNATED STAFF)
+             ----------------------------------------------------------------- */}
+          {activePortalTab === 'STAFF' && (
+            <div data-testid="portal-staff" className="space-y-6">
+              <div className="p-3.5 rounded bg-black border border-zinc-800 flex flex-wrap items-center justify-between gap-2 text-xs font-mono">
+                <span className="text-[#5ADCC8] font-bold">
+                  3JI Staff Portal (Jason Allen &amp; Designated Staff) — Customer Setup · Available-Opportunities Oversight · Support Docs Management
+                </span>
+                <span className="text-zinc-400">
+                  Financials Boundary: Zero P&amp;L/Revenue here (All financials in /os)
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 text-xs">
+                {/* 1. New Customer Setup Form */}
+                <form
+                  onSubmit={handleCreateCustomerSetup}
+                  data-testid="staff-new-customer-form"
+                  className="lg:col-span-6 bg-black border border-zinc-800 rounded p-4 space-y-3"
+                >
+                  <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
+                    <span className="font-black uppercase text-[#5ADCC8]">
+                      1. New Customer Setup (Multi-Asset &amp; Contract Info)
+                    </span>
+                    <span className="font-mono text-[11px] text-zinc-400">Populates Customer Portal</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                    <div>
+                      <label className="block font-mono text-zinc-400 mb-1">Customer / Business Name</label>
+                      <input
+                        type="text"
+                        data-testid="staff-cust-name-input"
+                        value={newCustName}
+                        onChange={(e) => setNewCustName(e.target.value)}
+                        className="w-full bg-zinc-950 border border-zinc-700 rounded px-2.5 py-1.5 text-white"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-mono text-zinc-400 mb-1">Primary Contact Info</label>
+                      <input
+                        type="text"
+                        data-testid="staff-cust-contact-input"
+                        value={newCustContact}
+                        onChange={(e) => setNewCustContact(e.target.value)}
+                        className="w-full bg-zinc-950 border border-zinc-700 rounded px-2.5 py-1.5 text-white"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+                    <div className="md:col-span-2">
+                      <label className="block font-mono text-zinc-400 mb-1">Service Location Address</label>
+                      <input
+                        type="text"
+                        data-testid="staff-cust-address-input"
+                        value={newCustAddress}
+                        onChange={(e) => setNewCustAddress(e.target.value)}
+                        className="w-full bg-zinc-950 border border-zinc-700 rounded px-2.5 py-1.5 text-white"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-mono text-zinc-400 mb-1">Cuyahoga ZIP</label>
+                      <input
+                        type="text"
+                        value={newCustZip}
+                        onChange={(e) => setNewCustZip(e.target.value)}
+                        className="w-full bg-zinc-950 border border-zinc-700 rounded px-2.5 py-1.5 text-white font-mono"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                    <div>
+                      <label className="block font-mono text-zinc-400 mb-1">Contract / Care Plan Tier</label>
+                      <select
+                        data-testid="staff-cust-plan-select"
+                        value={newCustPlanTier}
+                        onChange={(e) =>
+                          setNewCustPlanTier(
+                            e.target.value as
+                              | 'None'
+                              | 'Single-Machine ($79–99/mo)'
+                              | 'Multi-Machine Location ($149–199/mo)'
+                          )
+                        }
+                        className="w-full bg-zinc-950 border border-zinc-700 rounded px-2.5 py-1.5 text-white"
+                      >
+                        <option value="Multi-Machine Location ($149–199/mo)">
+                          Multi-Machine Location ($149–199/mo)
+                        </option>
+                        <option value="Single-Machine ($79–99/mo)">
+                          Single-Machine ($79–99/mo)
+                        </option>
+                        <option value="None">Standard Account (No Monthly Care Plan)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block font-mono text-zinc-400 mb-1">Contract Terms Note</label>
+                      <input
+                        type="text"
+                        value={newCustTerms}
+                        onChange={(e) => setNewCustTerms(e.target.value)}
+                        className="w-full bg-zinc-950 border border-zinc-700 rounded px-2.5 py-1.5 text-white"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Multiple Equipment Assets Builder */}
+                  <div className="space-y-2 pt-2 border-t border-zinc-900">
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono text-[#5ADCC8] font-bold">
+                        Customer Equipment Assets ({newCustAssets.length} Units)
+                      </span>
+                      <button
+                        type="button"
+                        data-testid="staff-add-asset-row-btn"
+                        onClick={handleAddNewAssetRow}
+                        className="px-2.5 py-1 rounded bg-zinc-900 border border-[#5ADCC8] text-[#5ADCC8] font-mono text-[11px] cursor-pointer"
+                      >
+                        + Add Equipment Asset
+                      </button>
+                    </div>
+                    {newCustAssets.map((asset, idx) => (
+                      <div key={idx} className="grid grid-cols-1 md:grid-cols-3 gap-2 bg-zinc-950 p-2 rounded border border-zinc-800">
+                        <select
+                          value={asset.equipment_type}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setNewCustAssets((prev) =>
+                              prev.map((a, i) => (i === idx ? { ...a, equipment_type: val } : a))
+                            );
+                          }}
+                          className="bg-black border border-zinc-700 rounded px-2 py-1 text-white text-[11px]"
+                        >
+                          {EQUIPMENT_SCOPE_3JI_REPAIR.map((cat) => (
+                            <option key={cat} value={cat}>
+                              {cat}
+                            </option>
+                          ))}
+                        </select>
+                        <input
+                          type="text"
+                          value={asset.make_model}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setNewCustAssets((prev) =>
+                              prev.map((a, i) => (i === idx ? { ...a, make_model: val } : a))
+                            );
+                          }}
+                          placeholder="Make / Model"
+                          className="bg-black border border-zinc-700 rounded px-2 py-1 text-white text-[11px]"
+                        />
+                        <input
+                          type="text"
+                          value={asset.serial_number}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setNewCustAssets((prev) =>
+                              prev.map((a, i) => (i === idx ? { ...a, serial_number: val } : a))
+                            );
+                          }}
+                          placeholder="Serial #"
+                          className="bg-black border border-zinc-700 rounded px-2 py-1 text-white font-mono text-[11px]"
+                        />
+                      </div>
+                    ))}
+                  </div>
+
+                  <button
+                    type="submit"
+                    data-testid="staff-create-customer-submit"
+                    className="w-full py-2 rounded bg-[#5ADCC8] text-black font-black uppercase tracking-wider text-xs hover:bg-[#5ADCC8]/90 cursor-pointer"
+                  >
+                    Create Customer Profile &amp; Register {newCustAssets.length} Equipment Assets
+                  </button>
+                </form>
+
+                {/* 2. Available-Opportunities Oversight & Module 1 Retention Escalation Rule */}
+                <div
+                  data-testid="staff-opportunities-oversight"
+                  className="lg:col-span-6 bg-black border border-zinc-800 rounded p-4 space-y-3"
+                >
+                  <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
+                    <span className="font-black uppercase text-[#5ADCC8]">
+                      2. Available-Opportunities Oversight (Module 1 Retention Rule)
+                    </span>
+                    <span className="font-mono text-[11px] text-zinc-400">
+                      1h Emergency / 2h Widen / 4h → Jason&apos;s Schedule
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-zinc-400">
+                    No customer request is ever left hanging: unclaimed emergency opportunities after <strong>1h</strong> (or standard opportunities after <strong>2h widen / 4h</strong> or within <strong>2h of promised window</strong>) escalate to Needs Jason, land on <strong>Jason&apos;s tentative schedule</strong>, and prepare a draft-first customer update.
+                  </p>
+
+                  <div className="space-y-2.5 max-h-80 overflow-y-auto pr-1">
+                    {state.jobs.map((job) => (
+                      <div
+                        key={job.id}
+                        data-testid={`staff-oversight-job-${job.id}`}
+                        className={`p-3 rounded border space-y-1.5 ${
+                          job.on_jason_tentative_schedule && job.status === 'Unclaimed'
+                            ? 'bg-red-950/30 border-red-500'
+                            : 'bg-zinc-950 border-zinc-800'
+                        }`}
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <span className="font-mono font-bold text-[#5ADCC8]">
+                            {job.id} · {job.business_name} ({job.city})
+                          </span>
+                          <span className="px-2 py-0.5 rounded bg-black border border-zinc-700 font-mono text-[10px] text-white">
+                            {job.escalation_stage}
+                          </span>
+                        </div>
+                        <div className="text-zinc-300">
+                          {job.equipment_category}: {job.machine_type} — <em>{job.reported_symptom}</em>
+                        </div>
+                        <div className="text-[11px] font-mono text-zinc-400">
+                          Posted: {job.posted_hours_ago}h ago · Window: {job.promised_window} · Status:{' '}
+                          <strong className="text-white">{job.status}</strong>
+                          {job.claimed_by_name ? ` (${job.claimed_by_name})` : ''}
+                        </div>
+                        {job.draft_customer_update && (
+                          <div className="p-2 rounded bg-black border border-zinc-800 font-mono text-[11px] text-amber-300">
+                            Draft Customer Update: &ldquo;{job.draft_customer_update}&rdquo;
+                          </div>
+                        )}
+                        {job.status === 'Unclaimed' && (
+                          <div className="pt-1 flex justify-end">
+                            <button
+                              type="button"
+                              data-testid={`staff-schedule-jason-btn-${job.id}`}
+                              onClick={() => handleScheduleJasonOnOpportunity(job.id)}
+                              className="px-3 py-1 rounded bg-[#5ADCC8] text-black font-black uppercase text-[11px] hover:bg-[#5ADCC8]/90 cursor-pointer"
+                            >
+                              Schedule Jason onto this opportunity
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* 3. Support Docs Management (Ships EMPTY with 15 Equipment Categories) */}
+              <div
+                data-testid="staff-support-docs-manager"
+                className="bg-black border border-zinc-800 rounded p-5 space-y-4 text-xs"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-800 pb-3">
+                  <div>
+                    <h3 className="text-sm font-black uppercase text-[#5ADCC8]">
+                      3. Support Docs Management — 15 Equipment Categories (Ships Empty · Live Upload to Technician Portal)
+                    </h3>
+                    <p className="text-xs text-zinc-400 mt-0.5">
+                      Full 15-category tree from Jason&apos;s 3JI-Repair equipment scope. Library ships empty (0 seeded PDFs) — upload support PDFs below and they immediately appear in the Technician Portal.
+                    </p>
+                  </div>
+                  <span
+                    data-testid="support-docs-count-badge"
+                    className="px-3 py-1 rounded bg-[#5ADCC8]/15 border border-[#5ADCC8] text-[#5ADCC8] font-mono font-bold"
+                  >
+                    {state.support_docs.length} PDFs Uploaded Across 15 Categories
+                  </span>
+                </div>
+
+                {/* 15-Category Tree Pills */}
+                <div
+                  data-testid="support-docs-category-tree"
+                  className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2"
+                >
+                  {EQUIPMENT_SCOPE_3JI_REPAIR.map((cat) => {
+                    const count = state.support_docs.filter((d) => d.equipment_type === cat).length;
+                    return (
+                      <div
+                        key={cat}
+                        className={`p-2 rounded border font-mono text-[11px] flex items-center justify-between gap-1 ${
+                          count > 0
+                            ? 'bg-[#5ADCC8]/15 border-[#5ADCC8] text-white'
+                            : 'bg-zinc-950 border-zinc-800 text-zinc-400'
+                        }`}
+                      >
+                        <span className="truncate" title={cat}>
+                          {cat}
+                        </span>
+                        <span className="px-1.5 py-0.5 rounded bg-black text-[#5ADCC8] font-bold shrink-0">
+                          {count}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Upload Form + Uploaded Docs List */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 pt-2">
+                  <form
+                    onSubmit={handleUploadSupportDoc}
+                    data-testid="upload-support-doc-form"
+                    className="lg:col-span-5 bg-zinc-950 border border-zinc-800 rounded p-4 space-y-3"
+                  >
+                    <div className="font-black uppercase text-white">Upload Support PDF to Category</div>
+                    <div>
+                      <label className="block font-mono text-zinc-400 mb-1">Equipment Category (15-Item Scope)</label>
+                      <select
+                        data-testid="upload-doc-category-select"
+                        value={docEquipType}
+                        onChange={(e) => setDocEquipType(e.target.value)}
+                        className="w-full bg-black border border-zinc-700 rounded px-2.5 py-1.5 text-white"
+                      >
+                        {EQUIPMENT_SCOPE_3JI_REPAIR.map((cat) => (
+                          <option key={cat} value={cat}>
+                            {cat}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block font-mono text-zinc-400 mb-1">Document Title</label>
+                      <input
+                        type="text"
+                        data-testid="upload-doc-title-input"
+                        value={docTitle}
+                        onChange={(e) => setDocTitle(e.target.value)}
+                        className="w-full bg-black border border-zinc-700 rounded px-2.5 py-1.5 text-white"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-mono text-zinc-400 mb-1">PDF File Name</label>
+                      <input
+                        type="text"
+                        data-testid="upload-doc-filename-input"
+                        value={docFileName}
+                        onChange={(e) => setDocFileName(e.target.value)}
+                        className="w-full bg-black border border-zinc-700 rounded px-2.5 py-1.5 text-white font-mono"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-mono text-zinc-400 mb-1">Technician Field Notes</label>
+                      <input
+                        type="text"
+                        value={docNotes}
+                        onChange={(e) => setDocNotes(e.target.value)}
+                        className="w-full bg-black border border-zinc-700 rounded px-2.5 py-1.5 text-white"
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      data-testid="upload-support-doc-submit"
+                      className="w-full py-2 rounded bg-[#5ADCC8] text-black font-black uppercase tracking-wider text-xs hover:bg-[#5ADCC8]/90 cursor-pointer"
+                    >
+                      Upload PDF to Support Library
+                    </button>
+                  </form>
+
+                  <div className="lg:col-span-7 bg-zinc-950 border border-zinc-800 rounded p-4 space-y-3">
+                    <div className="font-black uppercase text-white">
+                      Uploaded Support Documents ({state.support_docs.length})
+                    </div>
+                    {state.support_docs.length === 0 ? (
+                      <div
+                        data-testid="support-docs-empty-state"
+                        className="p-6 rounded bg-black border border-dashed border-zinc-700 text-center space-y-1 font-mono"
+                      >
+                        <div className="text-[#5ADCC8] font-bold">
+                          Support Docs Library is Empty (0 Seeded Documents)
+                        </div>
+                        <p className="text-zinc-400 text-[11px]">
+                          All 15 3JI-Repair equipment categories are ready. Upload a PDF on the left to publish it to the Technician Portal.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {state.support_docs.map((doc) => (
+                          <div
+                            key={doc.id}
+                            data-testid={`staff-support-doc-row-${doc.id}`}
+                            className="p-3 rounded bg-black border border-[#5ADCC8] flex flex-wrap items-center justify-between gap-2"
+                          >
+                            <div>
+                              <div className="font-bold text-white">
+                                📄 {doc.title} <span className="font-mono text-xs text-[#5ADCC8]">({doc.file_name})</span>
+                              </div>
+                              <div className="text-[11px] font-mono text-zinc-300">
+                                Equipment Type: <strong>{doc.equipment_type}</strong> · Uploaded by {doc.uploaded_by}
+                              </div>
+                              <div className="text-[11px] text-zinc-400">{doc.file_notes}</div>
+                            </div>
+                            <span className="px-2 py-1 rounded bg-[#5ADCC8]/20 text-[#5ADCC8] font-mono text-[10px] font-bold">
+                              Published to Tech Portal
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* =====================================================================
+            MODULE 1: CUYAHOGA COUNTY JOB MAP & ROLE-GATED OPPORTUNITY CLAIMING
            ===================================================================== */}
         <section
           id="module-job-map"
@@ -626,11 +1659,11 @@ export default function FieldOperationsAppPage() {
                   Module 1
                 </span>
                 <h1 className="text-lg md:text-xl font-black uppercase tracking-wider text-white">
-                  Cuyahoga County Job Map &amp; Role-Gated Claiming
+                  3JI-Repair Opportunity Map &amp; Role-Gated Claiming (Launch Area: Cuyahoga County)
                 </h1>
               </div>
               <p className="text-xs text-zinc-400 mt-1">
-                Division 02 Service Area: <strong className="text-[#5ADCC8]">CUYAHOGA COUNTY, OHIO ONLY</strong> · Care-Plan jobs surface first · Unclaimed &gt; 4h escalates to Needs Jason.
+                Launch Service Area: <strong className="text-[#5ADCC8]">CUYAHOGA COUNTY, OHIO ONLY</strong> (configurable for future expansion) · Care-Plan opportunities surface first · Customer-retention escalation rule: <strong className="text-white">1h emergency / 2h widen / 4h or 2h-before-window → lands on Jason&apos;s schedule + draft customer update</strong>.
               </p>
             </div>
 
@@ -694,7 +1727,7 @@ export default function FieldOperationsAppPage() {
           {/* Interactive Cuyahoga County Map Visualization */}
           <div className="bg-black border border-zinc-800 rounded p-4">
             <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono text-zinc-400 mb-3">
-              <span>CUYAHOGA COUNTY, OH LIVE DISPATCH GRID (41.4993° N, 81.6944° W)</span>
+              <span>CUYAHOGA COUNTY, OH LIVE 3JI-REPAIR DISPATCH GRID (41.4993° N, 81.6944° W)</span>
               <div className="flex items-center gap-4">
                 <span className="flex items-center gap-1.5">
                   <span className="h-2.5 w-2.5 rounded-full bg-red-500 inline-block" /> Red = Machine Down (Loaner Swap)
@@ -751,7 +1784,7 @@ export default function FieldOperationsAppPage() {
                         <span className="text-[#5ADCC8]">{job.care_plan_status}</span>
                       </div>
                       <div className="text-xs text-zinc-300">
-                        <strong>Equipment:</strong> {job.machine_type} ({job.serial_number})
+                        <strong>Category:</strong> {job.equipment_category} · <strong>Equipment:</strong> {job.machine_type} ({job.serial_number})
                       </div>
                       <div className="text-xs text-zinc-400">
                         <strong>Symptom:</strong> {job.reported_symptom}
@@ -761,10 +1794,10 @@ export default function FieldOperationsAppPage() {
                           Loaner Needed: <strong>{job.loaner_needed ? `YES (${job.assigned_loaner_id || 'Auto-Reserve'})` : 'NO'}</strong>
                         </span>
                         <span className="px-2 py-0.5 rounded bg-black border border-zinc-800">
-                          Tier: {job.estimated_labor_tier}
-                        </span>
-                        <span className="px-2 py-0.5 rounded bg-black border border-zinc-800">
                           Split: <strong className="text-[#5ADCC8]">{job.payout_mode}</strong>
+                        </span>
+                        <span className="px-2 py-0.5 rounded bg-black border border-zinc-800 text-amber-300">
+                          Retention Stage: {job.escalation_stage}
                         </span>
                       </div>
                     </div>
@@ -782,7 +1815,7 @@ export default function FieldOperationsAppPage() {
                       </div>
 
                       <div className="flex items-center gap-2">
-                        {activeRole === 'Junior Tech / Trainee' && !activeTrainee.can_claim_solo ? (
+                        {activeRole === '3JI-Repair Trainee' && !activeTrainee.can_claim_solo ? (
                           <>
                             <button
                               type="button"
@@ -1100,7 +2133,7 @@ export default function FieldOperationsAppPage() {
                   Module 3
                 </span>
                 <h2 className="text-lg md:text-xl font-black uppercase tracking-wider text-white">
-                  Inventory Management — Foundry Parts, Food Service Parts &amp; Loaner Fleet
+                  Inventory Management — Foundry Parts, 3JI-Repair Parts &amp; Loaner Fleet
                 </h2>
               </div>
               <p className="text-xs text-zinc-400 mt-1">
@@ -1112,7 +2145,7 @@ export default function FieldOperationsAppPage() {
               {[
                 { id: 'ALL', label: 'All Inventory Tabs' },
                 { id: 'DIV1', label: 'Tab 1: Div 01 Foundry Parts' },
-                { id: 'DIV2', label: 'Tab 2: Div 02 Food Service Parts' },
+                { id: 'DIV2', label: 'Tab 2: Div 02 3JI-Repair Parts' },
                 { id: 'LOANERS', label: 'Tab 3: Loaner Fleet (LN-01..LN-05)' },
               ].map((t) => (
                 <button
@@ -1152,7 +2185,7 @@ export default function FieldOperationsAppPage() {
                   {state.parts
                     .filter((p) => {
                       if (invTab === 'DIV1') return p.division === 'Division 01 — Foundry';
-                      if (invTab === 'DIV2') return p.division === 'Division 02 — Commercial Equipment';
+                      if (invTab === 'DIV2') return p.division === 'Division 02 — 3JI-Repair';
                       return true;
                     })
                     .map((part) => {
@@ -1289,13 +2322,13 @@ export default function FieldOperationsAppPage() {
                     value={qDivision}
                     onChange={(e) =>
                       setQDivision(
-                        e.target.value as 'Division 01 — Foundry' | 'Division 02 — Commercial Equipment'
+                        e.target.value as 'Division 01 — Foundry' | 'Division 02 — 3JI-Repair'
                       )
                     }
                     className="w-full bg-black border border-zinc-700 rounded px-3 py-2 text-white"
                   >
-                    <option value="Division 02 — Commercial Equipment">
-                      Division 02 — Commercial Equipment (Cuyahoga Only)
+                    <option value="Division 02 — 3JI-Repair">
+                      Division 02 — 3JI-Repair (Cuyahoga County Launch Area)
                     </option>
                     <option value="Division 01 — Foundry">
                       Division 01 — Foundry Support (Nationwide)
@@ -1564,7 +2597,7 @@ export default function FieldOperationsAppPage() {
                   <p className="text-zinc-300 leading-relaxed">
                     A down frozen machine costs{' '}
                     <strong>60 drinks/day × ~$2.72/drink ≈ $98/day</strong> in lost gross profit (
-                    <strong>~${totalDowntimeLoss}/incident</strong> over {qDaysDown} days down). 3J drops off a loaner machine first so you keep selling.
+                    <strong>~${totalDowntimeLoss}/incident</strong> over {qDaysDown} days down). 3JI-Repair drops off a loaner machine first so you keep selling.
                   </p>
                   <div className="grid grid-cols-2 gap-2 pt-1 font-mono text-[11px]">
                     <div>
@@ -1622,11 +2655,11 @@ export default function FieldOperationsAppPage() {
                   Module 5
                 </span>
                 <h2 className="text-lg md:text-xl font-black uppercase tracking-wider text-white">
-                  Mobile Work Booking — Cuyahoga County Validation (Div 02) &amp; Nationwide Foundry (Div 01)
+                  Mobile Work Booking — Cuyahoga County Validation (3JI-Repair) &amp; Nationwide Foundry (Div 01)
                 </h2>
               </div>
               <p className="text-xs text-zinc-400 mt-1">
-                Division 02 bookings validate <strong className="text-[#5ADCC8]">CUYAHOGA COUNTY, OHIO ONLY</strong> city &amp; ZIP. Out-of-county requests display a clear Cuyahoga-only notice and optionally escalate to Needs Jason.
+                3JI-Repair (Division 02) bookings validate <strong className="text-[#5ADCC8]">CUYAHOGA COUNTY, OHIO ONLY</strong> city &amp; ZIP. Out-of-county requests display a clear Cuyahoga-only notice and optionally escalate to Needs Jason.
               </p>
             </div>
           </div>
@@ -1639,13 +2672,13 @@ export default function FieldOperationsAppPage() {
                 value={bkDivision}
                 onChange={(e) =>
                   setBkDivision(
-                    e.target.value as 'Division 02 — Commercial Equipment' | 'Division 01 — Foundry'
+                    e.target.value as 'Division 02 — 3JI-Repair' | 'Division 01 — Foundry'
                   )
                 }
                 className="w-full bg-black border border-zinc-700 rounded px-3 py-2 text-white"
               >
-                <option value="Division 02 — Commercial Equipment">
-                  Division 02 — Commercial Equipment (CUYAHOGA COUNTY, OH ONLY)
+                <option value="Division 02 — 3JI-Repair">
+                  Division 02 — 3JI-Repair (CUYAHOGA COUNTY, OH ONLY)
                 </option>
                 <option value="Division 01 — Foundry">
                   Division 01 — Foundry Support (Nationwide USA)
@@ -1720,14 +2753,22 @@ export default function FieldOperationsAppPage() {
             </div>
 
             <div>
-              <label className="block font-mono text-zinc-400 mb-1">Equipment / Foundry Platform</label>
-              <input
-                type="text"
+              <label className="block font-mono text-zinc-400 mb-1">Equipment Category (15-Item Scope) / Platform</label>
+              <select
                 value={bkMachine}
                 onChange={(e) => setBkMachine(e.target.value)}
                 className="w-full bg-black border border-zinc-700 rounded px-3 py-2 text-white"
-                required
-              />
+              >
+                {EQUIPMENT_SCOPE_3JI_REPAIR.map((cat) => (
+                  <option key={cat} value={cat}>
+                    {cat}
+                  </option>
+                ))}
+                <option value="FDU — Foundry Degassing Unit">FDU — Foundry Degassing Unit (Div 01)</option>
+                <option value="MTS 1500 — Metal Treatment Station">MTS 1500 — Metal Treatment Station (Div 01)</option>
+                <option value="SMARTT — Rotary Degassing">SMARTT — Rotary Degassing (Div 01)</option>
+                <option value="ThermaTest NGIII 5000">ThermaTest NGIII 5000 (Div 01)</option>
+              </select>
             </div>
 
             <div>
@@ -1801,12 +2842,12 @@ export default function FieldOperationsAppPage() {
         </section>
 
         {/* =====================================================================
-            MODULE 6: THE JUNIOR TECH PROGRAM & TECH NETWORK (15% / 20% LEDGER)
+            MODULE 6: 3JI-REPAIR TECHNICIAN PIPELINE & TECH NETWORK (15% / 20% PAYOUTS)
            ===================================================================== */}
         <section
-          id="module-junior-tech"
-          data-testid="module-junior-tech"
-          aria-label="Module 6: Junior Tech Program & Tech Network"
+          id="module-3ji-repair-techs"
+          data-testid="module-3ji-repair-techs"
+          aria-label="Module 6: 3JI-Repair Technician Pipeline & Tech Network"
           className="bg-zinc-950 border border-zinc-800 rounded p-6 space-y-6"
         >
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-800 pb-4">
@@ -1816,11 +2857,11 @@ export default function FieldOperationsAppPage() {
                   Module 6
                 </span>
                 <h2 className="text-lg md:text-xl font-black uppercase tracking-wider text-white">
-                  The Junior Tech Program &amp; Tech Network Split Ledger
+                  3JI-Repair Technician Pipeline &amp; Tech Network Payout Summary
                 </h2>
               </div>
               <p className="text-xs text-zinc-400 mt-1">
-                Vocational-style training program led by Jason Allen · Trainees complete 5 curriculum milestones &amp; 5 shadowed swaps · <strong className="text-[#5ADCC8]">Jason&apos;s Graduation Sign-Off</strong> promotes trainee to <strong className="text-white">L1 — PM / Swap</strong> (`can_claim_solo = true`) · Top graduates flagged for <strong className="text-[#5ADCC8]">Division 01 Foundry Mentorship</strong> (FDU, MTS 1500, SMARTT, ThermaTest NGIII 5000).
+                Hands-on 3JI-Repair training led by Jason Allen · Trainees complete 5 curriculum milestones &amp; 5 shadowed swaps · <strong className="text-[#5ADCC8]">Jason&apos;s Graduation Sign-Off</strong> promotes a <strong className="text-white">3JI-Repair Trainee</strong> to <strong className="text-white">L1 — PM / Swap</strong> (`can_claim_solo = true`) · Top graduates recruited onward to <strong className="text-[#5ADCC8]">Division 01 Foundry Mentorship</strong> (FDU, MTS 1500, SMARTT, ThermaTest NGIII 5000).
               </p>
             </div>
           </div>
@@ -1862,7 +2903,7 @@ export default function FieldOperationsAppPage() {
                   {/* 5 Curriculum Milestones */}
                   <div className="p-3 rounded bg-zinc-950 border border-zinc-800 space-y-1.5 text-xs">
                     <div className="font-mono text-[10px] uppercase text-zinc-400 mb-1">
-                      5 Vocational Curriculum Milestones:
+                      5 3JI-Repair Curriculum Milestones:
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-[#5ADCC8]">
@@ -1933,7 +2974,7 @@ export default function FieldOperationsAppPage() {
             ))}
           </div>
 
-          {/* Tech Network Split Ledger (Strictly 15% Network / 20% Hub — Never 25-30%) */}
+          {/* Tech Payout Summary (Strictly 15% Network / 20% Hub — Never 25-30%; Company Financials in /os) */}
           <div
             data-testid="tech-network-split-ledger"
             className="p-5 rounded bg-black border border-zinc-800 space-y-3"
@@ -1941,10 +2982,10 @@ export default function FieldOperationsAppPage() {
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
                 <h3 className="text-sm font-black uppercase text-[#5ADCC8]">
-                  Tech Network Split Ledger — Locked 15% Network / 20% Hub Take Rates
+                  Technician Payout Summary — Locked 15% Network / 20% Hub Take Rates
                 </h3>
                 <p className="text-xs text-zinc-400">
-                  15% platform fee on Network jobs (tech brings van/tools) · 20% platform fee on Hub jobs (3J loaner machine, shop bench &amp; parts support). Never 25–30%.
+                  15% platform fee on Network jobs (tech brings van/tools) · 20% platform fee on Hub jobs (3J loaner machine, shop bench &amp; parts support). Never 25–30%. All company &amp; 3JI-Repair financials live in the OS Command Center (/os).
                 </p>
               </div>
               <div className="font-mono text-xs text-[#5ADCC8] font-bold">
@@ -1959,9 +3000,7 @@ export default function FieldOperationsAppPage() {
                     <th className="py-2 px-3">Payout ID</th>
                     <th className="py-2 px-3">Job ID</th>
                     <th className="py-2 px-3">Certified Tech</th>
-                    <th className="py-2 px-3">Gross Billable Labor</th>
                     <th className="py-2 px-3">Take-Rate Tier</th>
-                    <th className="py-2 px-3">3J Platform Fee</th>
                     <th className="py-2 px-3">Tech Net Payout</th>
                   </tr>
                 </thead>
@@ -1971,11 +3010,9 @@ export default function FieldOperationsAppPage() {
                       <td className="py-2.5 px-3 text-[#5ADCC8] font-bold">{p.id}</td>
                       <td className="py-2.5 px-3 text-white">{p.job_id}</td>
                       <td className="py-2.5 px-3 text-white">{p.tech_name}</td>
-                      <td className="py-2.5 px-3">${p.gross_labor_billable.toFixed(2)}</td>
                       <td className="py-2.5 px-3 text-[#5ADCC8] font-bold">
                         {p.tier} ({p.platform_take_pct}% Take Rate)
                       </td>
-                      <td className="py-2.5 px-3">${p.platform_fee_amount.toFixed(2)}</td>
                       <td className="py-2.5 px-3 font-bold text-white">
                         ${p.tech_net_payout.toFixed(2)}
                       </td>
@@ -1993,7 +3030,7 @@ export default function FieldOperationsAppPage() {
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
           <div>
             <strong className="text-white">3J Industrial Parts LLC</strong> · SPARE PARTS | SERVICES | CONSULTING ·{' '}
-            <strong className="text-[#5ADCC8]">Division 02: CUYAHOGA COUNTY, OHIO ONLY</strong>
+            <strong className="text-[#5ADCC8]">Division 02 (3JI-Repair): CUYAHOGA COUNTY, OHIO ONLY</strong>
           </div>
           <div className="font-mono">
             Founder: Jason Allen · 216-906-2252 · Jallen@3jindustrialparts.com · Estimate within 24 hours

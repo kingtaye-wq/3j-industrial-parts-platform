@@ -2,37 +2,79 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 
-export type TechLevel = 'Junior Tech / Trainee' | 'L1 — PM / Swap' | 'L2 — Sealed System / EPA 608' | 'L3 — Master / Foundry';
+export type TechLevel =
+  | '3JI-Repair Trainee'
+  | 'L1 — PM / Swap'
+  | 'L2 — Sealed System / EPA 608'
+  | 'L3 — Master / Foundry';
 
 export type UserRole =
-  | 'Admin (Jason)'
-  | 'Tech L1'
-  | 'Tech L2 (EPA 608)'
-  | 'Tech L3 (Master / Foundry)'
-  | 'Junior Tech / Trainee'
-  | 'Customer';
+  | 'Admin (Jason / 3JI Staff)'
+  | 'Tech L1 (Technician Portal)'
+  | 'Tech L2 — EPA 608 (Technician Portal)'
+  | 'Tech L3 — Master / Foundry (Technician Portal)'
+  | '3JI-Repair Trainee'
+  | 'Customer (Customer Portal)';
+
+export const EQUIPMENT_SCOPE_3JI_REPAIR = [
+  'Refrigerators',
+  'Coolers',
+  'Freezers',
+  'Ice Machines',
+  'HVAC',
+  'Beverage Machines',
+  'Frozen Beverage / Slushie Machines',
+  'Walk-In Coolers & Freezers',
+  'Reach-In & Undercounter Refrigeration',
+  'Display Merchandiser Cases',
+  'Ice Dispensers & Bins',
+  'Soda Fountain & Carbonation Systems',
+  'Draft Beer Systems & Glycol Chillers',
+  'Bottle Coolers & Kegerators',
+  'Juice Dispensers & Mixers',
+] as const;
+
+export type EquipmentCategory3JIRepair = (typeof EQUIPMENT_SCOPE_3JI_REPAIR)[number];
+
+export interface CustomerContractInfo {
+  plan_tier:
+    | 'None'
+    | 'Single-Machine ($79–99/mo)'
+    | 'Multi-Machine Location ($149–199/mo)'
+    | 'Foundry PM Contract';
+  monthly_mrr: number;
+  terms: string;
+  auto_pm_schedule: string;
+}
 
 export interface CustomerRecord {
   id: string;
-  business_name: string; // Labeled placeholder per brand rules
-  division: 'Division 01 — Foundry' | 'Division 02 — Commercial Equipment';
+  business_name: string;
+  division: 'Division 01 — Foundry' | 'Division 02 — 3JI-Repair';
   city: string;
   state: string;
   zip: string;
   county: string;
-  care_plan_tier: 'None' | 'Single-Machine ($79–99/mo)' | 'Multi-Machine Location ($149–199/mo)' | 'Foundry PM Contract';
+  locations: string[];
+  care_plan_tier:
+    | 'None'
+    | 'Single-Machine ($79–99/mo)'
+    | 'Multi-Machine Location ($149–199/mo)'
+    | 'Foundry PM Contract';
   monthly_mrr: number;
   is_contract_account: boolean;
   contact_Placeholder: string;
+  contract_info: CustomerContractInfo;
 }
 
 export interface MachineRecord {
   id: string;
   customer_id: string;
-  division: 'Division 01 — Foundry' | 'Division 02 — Commercial Equipment';
+  division: 'Division 01 — Foundry' | 'Division 02 — 3JI-Repair';
   platform_or_type: string;
   make_model: string;
   serial_number: string;
+  location_label: string;
   status: 'Operational' | 'Down — Emergency' | 'Degraded' | 'On Bench';
 }
 
@@ -86,9 +128,15 @@ export type JobUrgency =
   | 'Scheduled PM'
   | 'Ready for Return Swap';
 
+export type EscalationStage =
+  | 'Normal (<2h — Matched Techs Notified)'
+  | 'Widened (≥2h — All Graduated Techs Notified)'
+  | 'Escalated to Jason (≥4h or 1h Emergency / 2h Before Window — On Jason Schedule)'
+  | 'Fulfilled / Claimed';
+
 export interface JobRecord {
   id: string;
-  division: 'Division 01 — Foundry' | 'Division 02 — Commercial Equipment';
+  division: 'Division 01 — Foundry' | 'Division 02 — 3JI-Repair';
   customer_id: string;
   business_name: string;
   city: string;
@@ -96,12 +144,17 @@ export interface JobRecord {
   zip: string;
   lat: number;
   lng: number;
+  equipment_category: string;
   machine_type: string;
   serial_number: string;
   reported_symptom: string;
   urgency: JobUrgency;
   dot_color: 'red' | 'amber' | 'blue';
-  care_plan_status: 'None' | 'Single-Machine ($79–99/mo)' | 'Multi-Machine Location ($149–199/mo)' | 'Foundry PM Contract';
+  care_plan_status:
+    | 'None'
+    | 'Single-Machine ($79–99/mo)'
+    | 'Multi-Machine Location ($149–199/mo)'
+    | 'Foundry PM Contract';
   loaner_needed: boolean;
   assigned_loaner_id: string | null;
   required_level: 'L1' | 'L2' | 'L3';
@@ -111,6 +164,11 @@ export interface JobRecord {
   claimed_by_name: string | null;
   shadow_requested_by: string[];
   posted_hours_ago: number;
+  promised_window: string;
+  escalation_stage: EscalationStage;
+  on_jason_tentative_schedule: boolean;
+  draft_customer_update: string;
+  customer_update_approved: boolean;
   estimated_labor_tier: 'Bench ($119–129/hr)' | 'Field ($139–149/hr)' | 'Refrigeration / Master ($169–179/hr)';
   estimated_hours: number;
   payout_mode: 'Network (15% Fee)' | 'Hub (20% Fee)';
@@ -119,10 +177,16 @@ export interface JobRecord {
 export interface PartRecord {
   id: string;
   sku: string;
-  division: 'Division 01 — Foundry' | 'Division 02 — Commercial Equipment';
+  division: 'Division 01 — Foundry' | 'Division 02 — 3JI-Repair';
   family: string;
   name: string;
-  system_fit: 'FDU' | 'MTS 1500' | 'SMARTT' | 'ThermaTest NGIII 5000' | 'Frozen Beverage / Slushie' | 'Ice Machine / Cooler';
+  system_fit:
+    | 'FDU'
+    | 'MTS 1500'
+    | 'SMARTT'
+    | 'ThermaTest NGIII 5000'
+    | 'Frozen Beverage / Slushie'
+    | 'Ice Machine / Cooler';
   serial_fit_notes: string;
   unit_cost: number;
   list_price_35: number; // auto = unit_cost * 1.35
@@ -143,18 +207,9 @@ export interface InventoryTxn {
   timestamp: string;
 }
 
-export interface QuoteLineItem {
-  id: string;
-  category: 'Diagnostic' | 'Diagnostic Credit' | 'Labor' | 'Parts' | 'Loaner' | 'Care Plan Upsell';
-  description: string;
-  qty: number;
-  unit_price: number;
-  total: number;
-}
-
 export interface QuoteRecord {
   id: string;
-  division: 'Division 01 — Foundry' | 'Division 02 — Commercial Equipment';
+  division: 'Division 01 — Foundry' | 'Division 02 — 3JI-Repair';
   customer_id: string;
   business_name: string;
   city_state: string;
@@ -171,7 +226,15 @@ export interface QuoteRecord {
   loaner_billing: 'Waived — Care Plan ($0)' | 'Daily ($39/day)' | 'Incident Flat ($199/incident)' | 'None';
   loaner_days_or_incidents: number;
   loaner_rate: number;
-  parts_lines: { part_id: string; sku: string; name: string; qty: number; unit_cost: number; markup_pct: 35 | 25; sell_price: number }[];
+  parts_lines: {
+    part_id: string;
+    sku: string;
+    name: string;
+    qty: number;
+    unit_cost: number;
+    markup_pct: 35 | 25;
+    sell_price: number;
+  }[];
   total_amount: number;
   sla_hours_remaining: number;
   turnaround_hours: number;
@@ -181,7 +244,7 @@ export interface QuoteRecord {
 
 export interface BookingRecord {
   id: string;
-  division: 'Division 01 — Foundry' | 'Division 02 — Commercial Equipment';
+  division: 'Division 01 — Foundry' | 'Division 02 — 3JI-Repair';
   business_name: string;
   address: string;
   city: string;
@@ -209,6 +272,7 @@ export interface CurriculumMilestones {
 export interface TechRecord {
   id: string;
   name: string;
+  contact_info: string;
   cohort: string;
   level: TechLevel;
   can_claim_solo: boolean;
@@ -218,6 +282,8 @@ export interface TechRecord {
   epa_608_cert_number: string;
   coi_verified_1m: boolean;
   coi_expiry: string;
+  skills_and_certs: string[];
+  job_types: string[];
   shadow_swaps_completed: number;
   supervised_bench_hours: number;
   jobs_completed_30d: number;
@@ -244,24 +310,34 @@ export interface PayoutRecord {
 export interface InvoiceRecord {
   id: string;
   customer_name: string;
-  division: 'Division 01 — Foundry' | 'Division 02 — Commercial Equipment';
+  division: 'Division 01 — Foundry' | 'Division 02 — 3JI-Repair';
   amount: number;
   paid_amount: number;
   aging_bucket: 'Current (0–30d)' | '31–60d' | '61–90d';
   status: 'Paid' | 'Open AR';
 }
 
+export interface SupportDocRecord {
+  id: string;
+  title: string;
+  equipment_type: string;
+  file_name: string;
+  file_notes: string;
+  uploaded_by: string;
+  uploaded_at: string;
+}
+
 export interface NeedsJasonItem {
   id: string;
   category:
     | 'Quote Approval'
-    | 'Junior Tech Graduation Sign-Off'
+    | '3JI-Repair Trainee Graduation Sign-Off'
     | 'Sanitizing Log Sign-Off'
     | 'Out-of-County Exception'
     | 'Low-Stock Critical Part'
-    | 'Unclaimed Job > 4h'
+    | 'Opportunity Escalated (Module 1 Retention Rule)'
     | 'Tech COI / Cert Expiry';
-  division: 'Division 01 — Foundry' | 'Division 02 — Commercial Equipment' | 'Junior Tech Program';
+  division: 'Division 01 — Foundry' | 'Division 02 — 3JI-Repair' | '3JI-Repair & Tech Network';
   title: string;
   detail: string;
   priority: 'CRITICAL' | 'HIGH' | 'STANDARD';
@@ -272,7 +348,7 @@ export interface NeedsJasonItem {
 
 export interface TargetRow {
   id: string;
-  division: 'Division 01 — Foundry' | 'Division 02 — Commercial' | 'Junior Tech Program';
+  division: 'Division 01 — Foundry' | 'Division 02 — 3JI-Repair' | '3JI-Repair & Tech Network';
   horizon: '30-Day' | '60-Day' | '90-Day';
   activity_metric_label: string;
   activity_current: number;
@@ -285,6 +361,12 @@ export interface TargetRow {
 
 export interface PlatformState {
   last_updated: string;
+  service_area_config: {
+    active_launch_area: string;
+    allowed_counties: string[];
+    expansion_mode: 'Launch Area Only (Cuyahoga County, OH)' | 'Multi-County Expansion Preview';
+    note: string;
+  };
   customers: CustomerRecord[];
   machines: MachineRecord[];
   loaners: LoanerAsset[];
@@ -296,6 +378,7 @@ export interface PlatformState {
   techs: TechRecord[];
   payouts: PayoutRecord[];
   invoices: InvoiceRecord[];
+  support_docs: SupportDocRecord[]; // Ships EMPTY per spec (Alex, 2026-11-02)
   needs_jason: NeedsJasonItem[];
   pipeline_funnel: {
     cuyahoga_bars_restaurants: {
@@ -359,7 +442,6 @@ export function isCuyahogaCityOrZip(city: string, zip: string, county?: string):
   }
 
   const cityMatch = CUYAHOGA_CITIES.some((c) => c.toLowerCase() === cleanCity);
-  // Cuyahoga County ZIP prefixes are primarily 441xx (and 44017 Berea, 44022 Chagrin Falls, 44040 Gates Mills, 44070 North Olmsted)
   const zipMatch =
     /^441\d{2}$/.test(cleanZip) ||
     ['44017', '44022', '44040', '44070'].includes(cleanZip);
@@ -368,8 +450,97 @@ export function isCuyahogaCityOrZip(city: string, zip: string, county?: string):
 }
 
 const INITIAL_STATE: PlatformState = {
-  last_updated: '2026-10-31T18:45:00Z',
+  last_updated: '2026-11-02T18:45:00Z',
+  service_area_config: {
+    active_launch_area: 'Cuyahoga County, OH',
+    allowed_counties: ['Cuyahoga'],
+    expansion_mode: 'Launch Area Only (Cuyahoga County, OH)',
+    note: '3JI-Repair launch area is Cuyahoga County, OH. Configurable setting built for planned national expansion — never presented as nationwide at launch.',
+  },
   customers: [
+    {
+      id: 'CUST-D2-01',
+      business_name: '[Bar Account Placeholder #01 — Lakewood Patio & Tap]',
+      division: 'Division 02 — 3JI-Repair',
+      city: 'Lakewood',
+      state: 'OH',
+      zip: '44107',
+      county: 'Cuyahoga',
+      locations: [
+        'Location 1 (Main Bar): 14800 Detroit Ave, Lakewood, OH 44107 [Placeholder]',
+        'Location 2 (Rooftop Patio): 14802 Detroit Ave, Lakewood, OH 44107 [Placeholder]',
+      ],
+      care_plan_tier: 'Multi-Machine Location ($149–199/mo)',
+      monthly_mrr: 179,
+      is_contract_account: true,
+      contact_Placeholder: 'Bar GM [Placeholder] · 216-555-0101 · ops@lakewoodpatio.example',
+      contract_info: {
+        plan_tier: 'Multi-Machine Location ($149–199/mo)',
+        monthly_mrr: 179,
+        terms: '12-Month 3JI-Repair Care Plan · $0 Loaner Machine Swaps · $99 Diagnostic Credited · +25% Contract Parts Markup',
+        auto_pm_schedule: 'Quarterly Frozen-Machine OAC 3717-1-08.1 Sanitize + Bi-Annual Ice Machine PM',
+      },
+    },
+    {
+      id: 'CUST-D2-02',
+      business_name: '[Restaurant Placeholder #02 — West 25th Cantina]',
+      division: 'Division 02 — 3JI-Repair',
+      city: 'Cleveland',
+      state: 'OH',
+      zip: '44113',
+      county: 'Cuyahoga',
+      locations: ['Main Dining & Service Bar: 1940 W 25th St, Cleveland, OH 44113 [Placeholder]'],
+      care_plan_tier: 'Multi-Machine Location ($149–199/mo)',
+      monthly_mrr: 199,
+      is_contract_account: true,
+      contact_Placeholder: 'Kitchen Ops [Placeholder] · 216-555-0102 · kitchen@w25cantina.example',
+      contract_info: {
+        plan_tier: 'Multi-Machine Location ($149–199/mo)',
+        monthly_mrr: 199,
+        terms: '12-Month 3JI-Repair Care Plan · Priority Same-Day Dispatch · $0 Loaner Machine Swaps',
+        auto_pm_schedule: 'Quarterly Frozen-Beverage Sanitize + Bi-Annual Walk-In & Ice PM',
+      },
+    },
+    {
+      id: 'CUST-D2-03',
+      business_name: '[Tavern Placeholder #03 — Parma Corner Grille]',
+      division: 'Division 02 — 3JI-Repair',
+      city: 'Parma',
+      state: 'OH',
+      zip: '44129',
+      county: 'Cuyahoga',
+      locations: ['5800 Ridge Rd, Parma, OH 44129 [Placeholder]'],
+      care_plan_tier: 'Single-Machine ($79–99/mo)',
+      monthly_mrr: 89,
+      is_contract_account: true,
+      contact_Placeholder: 'Owner [Placeholder] · 216-555-0103 · owner@parmagrille.example',
+      contract_info: {
+        plan_tier: 'Single-Machine ($79–99/mo)',
+        monthly_mrr: 89,
+        terms: 'Single-Machine 3JI-Repair Care Plan ($89/mo) · Free Loaner Swap on Covered Slushie Unit',
+        auto_pm_schedule: 'Quarterly OAC 3717-1-08.1 Sanitize & Seal Check',
+      },
+    },
+    {
+      id: 'CUST-D2-04',
+      business_name: '[Bar Placeholder #04 — Tremont Slush & Social]',
+      division: 'Division 02 — 3JI-Repair',
+      city: 'Cleveland',
+      state: 'OH',
+      zip: '44113',
+      county: 'Cuyahoga',
+      locations: ['2150 Professor Ave, Cleveland, OH 44113 [Placeholder]'],
+      care_plan_tier: 'None',
+      monthly_mrr: 0,
+      is_contract_account: false,
+      contact_Placeholder: 'Shift Lead [Placeholder] · 216-555-0104',
+      contract_info: {
+        plan_tier: 'None',
+        monthly_mrr: 0,
+        terms: 'On-Demand Commercial Repair · $99 Diagnostic (Credited Toward Repair) · +35% Standard Parts',
+        auto_pm_schedule: 'None — Eligible for $149–199/mo Care Plan Upsell',
+      },
+    },
     {
       id: 'CUST-D1-01',
       business_name: '[Foundry Account Placeholder #01 — Midwest Aluminum Castings]',
@@ -378,117 +549,83 @@ const INITIAL_STATE: PlatformState = {
       state: 'OH',
       zip: '43612',
       county: 'Lucas',
+      locations: ['Melt Shop Plant #1: Toledo, OH 43612 [Placeholder]'],
       care_plan_tier: 'Foundry PM Contract',
       monthly_mrr: 0,
       is_contract_account: true,
       contact_Placeholder: 'Melt Shop Superintendent [Placeholder]',
-    },
-    {
-      id: 'CUST-D1-02',
-      business_name: '[Foundry Account Placeholder #02 — Great Lakes Die Cast]',
-      division: 'Division 01 — Foundry',
-      city: 'Fort Wayne',
-      state: 'IN',
-      zip: '46808',
-      county: 'Allen',
-      care_plan_tier: 'None',
-      monthly_mrr: 0,
-      is_contract_account: false,
-      contact_Placeholder: 'Maintenance Buyer [Placeholder]',
-    },
-    {
-      id: 'CUST-D1-03',
-      business_name: '[Foundry Account Placeholder #03 — Valley Precision Alloy]',
-      division: 'Division 01 — Foundry',
-      city: 'Pittsburgh',
-      state: 'PA',
-      zip: '15222',
-      county: 'Allegheny',
-      care_plan_tier: 'Foundry PM Contract',
-      monthly_mrr: 0,
-      is_contract_account: true,
-      contact_Placeholder: 'Metallurgy Lead [Placeholder]',
-    },
-    {
-      id: 'CUST-D2-01',
-      business_name: '[Bar Account Placeholder #01 — Lakewood Patio & Tap]',
-      division: 'Division 02 — Commercial Equipment',
-      city: 'Lakewood',
-      state: 'OH',
-      zip: '44107',
-      county: 'Cuyahoga',
-      care_plan_tier: 'Multi-Machine Location ($149–199/mo)',
-      monthly_mrr: 179,
-      is_contract_account: true,
-      contact_Placeholder: 'Bar GM [Placeholder]',
-    },
-    {
-      id: 'CUST-D2-02',
-      business_name: '[Restaurant Placeholder #02 — West 25th Cantina]',
-      division: 'Division 02 — Commercial Equipment',
-      city: 'Cleveland',
-      state: 'OH',
-      zip: '44113',
-      county: 'Cuyahoga',
-      care_plan_tier: 'Multi-Machine Location ($149–199/mo)',
-      monthly_mrr: 199,
-      is_contract_account: true,
-      contact_Placeholder: 'Kitchen Ops [Placeholder]',
-    },
-    {
-      id: 'CUST-D2-03',
-      business_name: '[Tavern Placeholder #03 — Parma Corner Grille]',
-      division: 'Division 02 — Commercial Equipment',
-      city: 'Parma',
-      state: 'OH',
-      zip: '44129',
-      county: 'Cuyahoga',
-      care_plan_tier: 'Single-Machine ($79–99/mo)',
-      monthly_mrr: 89,
-      is_contract_account: true,
-      contact_Placeholder: 'Owner [Placeholder]',
-    },
-    {
-      id: 'CUST-D2-04',
-      business_name: '[Bar Placeholder #04 — Tremont Slush & Social]',
-      division: 'Division 02 — Commercial Equipment',
-      city: 'Cleveland',
-      state: 'OH',
-      zip: '44113',
-      county: 'Cuyahoga',
-      care_plan_tier: 'None',
-      monthly_mrr: 0,
-      is_contract_account: false,
-      contact_Placeholder: 'Shift Lead [Placeholder]',
-    },
-    {
-      id: 'CUST-D2-05',
-      business_name: '[Venue Placeholder #05 — Rocky River Harbor Lounge]',
-      division: 'Division 02 — Commercial Equipment',
-      city: 'Rocky River',
-      state: 'OH',
-      zip: '44116',
-      county: 'Cuyahoga',
-      care_plan_tier: 'Multi-Machine Location ($149–199/mo)',
-      monthly_mrr: 169,
-      is_contract_account: true,
-      contact_Placeholder: 'Beverage Manager [Placeholder]',
-    },
-    {
-      id: 'CUST-D2-06',
-      business_name: '[Restaurant Placeholder #06 — Euclid Shore Diner]',
-      division: 'Division 02 — Commercial Equipment',
-      city: 'Euclid',
-      state: 'OH',
-      zip: '44123',
-      county: 'Cuyahoga',
-      care_plan_tier: 'Single-Machine ($79–99/mo)',
-      monthly_mrr: 99,
-      is_contract_account: true,
-      contact_Placeholder: 'Store Manager [Placeholder]',
+      contract_info: {
+        plan_tier: 'Foundry PM Contract',
+        monthly_mrr: 0,
+        terms: 'Division 01 Foundry Support Contract · +25% Contract Parts · Quarterly Health Checks',
+        auto_pm_schedule: 'Quarterly SMARTT & FDU Calibration & Rotor Inspection',
+      },
     },
   ],
   machines: [
+    // Multiple assets for CUST-D2-01 (Lakewood Patio & Tap) covering Jason's 15-item equipment scope
+    {
+      id: 'MACH-201A',
+      customer_id: 'CUST-D2-01',
+      division: 'Division 02 — 3JI-Repair',
+      platform_or_type: 'Frozen Beverage / Slushie Machines',
+      make_model: 'Twin-Bowl Frozen Beverage Dispenser 2x12L',
+      serial_number: 'SN-FB-2104',
+      location_label: 'Main Bar Station 1',
+      status: 'Down — Emergency',
+    },
+    {
+      id: 'MACH-201B',
+      customer_id: 'CUST-D2-01',
+      division: 'Division 02 — 3JI-Repair',
+      platform_or_type: 'Ice Machines',
+      make_model: 'Modular Cube Ice Machine 500 lb/day + Bin',
+      serial_number: 'SN-ICE-4410',
+      location_label: 'Back Bar Ice Alcove',
+      status: 'Operational',
+    },
+    {
+      id: 'MACH-201C',
+      customer_id: 'CUST-D2-01',
+      division: 'Division 02 — 3JI-Repair',
+      platform_or_type: 'Walk-In Coolers & Freezers',
+      make_model: '10x12 Walk-In Keg & Prep Cooler (R-404A)',
+      serial_number: 'SN-WIC-7701',
+      location_label: 'Basement Commissary',
+      status: 'Operational',
+    },
+    {
+      id: 'MACH-201D',
+      customer_id: 'CUST-D2-01',
+      division: 'Division 02 — 3JI-Repair',
+      platform_or_type: 'Draft Beer Systems & Glycol Chillers',
+      make_model: '12-Tap Trunkline Glycol Chiller Power Pack',
+      serial_number: 'SN-GLY-3099',
+      location_label: 'Rooftop Patio Tap Tower',
+      status: 'Operational',
+    },
+    // Multiple assets for CUST-D2-02 (West 25th Cantina)
+    {
+      id: 'MACH-202A',
+      customer_id: 'CUST-D2-02',
+      division: 'Division 02 — 3JI-Repair',
+      platform_or_type: 'Frozen Beverage / Slushie Machines',
+      make_model: 'Triple-Bowl Frozen Margarita / Slush Unit',
+      serial_number: 'SN-FB-3391',
+      location_label: 'Cantina Service Bar',
+      status: 'On Bench',
+    },
+    {
+      id: 'MACH-202B',
+      customer_id: 'CUST-D2-02',
+      division: 'Division 02 — 3JI-Repair',
+      platform_or_type: 'Reach-In & Undercounter Refrigeration',
+      make_model: '2-Door Stainless Reach-In Line Freezer',
+      serial_number: 'SN-RIF-6120',
+      location_label: 'Hot Line Station',
+      status: 'Operational',
+    },
+    // Foundry assets
     {
       id: 'MACH-01',
       customer_id: 'CUST-D1-01',
@@ -496,43 +633,8 @@ const INITIAL_STATE: PlatformState = {
       platform_or_type: 'SMARTT',
       make_model: 'Foseco SMARTT Rotary Degassing Unit',
       serial_number: 'SN-SMARTT-4409A',
+      location_label: 'Furnace Bay 2',
       status: 'Operational',
-    },
-    {
-      id: 'MACH-02',
-      customer_id: 'CUST-D1-02',
-      division: 'Division 01 — Foundry',
-      platform_or_type: 'MTS 1500',
-      make_model: 'Foseco MTS 1500 Metal Treatment Station',
-      serial_number: 'SN-MTS1500-8821B',
-      status: 'Degraded',
-    },
-    {
-      id: 'MACH-03',
-      customer_id: 'CUST-D1-03',
-      division: 'Division 01 — Foundry',
-      platform_or_type: 'ThermaTest NGIII 5000',
-      make_model: 'Foseco ThermaTest NGIII 5000 Thermal Analyzer',
-      serial_number: 'SN-TT5000-1904C',
-      status: 'Operational',
-    },
-    {
-      id: 'MACH-04',
-      customer_id: 'CUST-D2-01',
-      division: 'Division 02 — Commercial Equipment',
-      platform_or_type: 'Frozen Beverage / Slushie Machine',
-      make_model: 'Twin-Bowl Frozen Beverage Dispenser 2x12L',
-      serial_number: 'SN-FB-2104',
-      status: 'Down — Emergency',
-    },
-    {
-      id: 'MACH-05',
-      customer_id: 'CUST-D2-02',
-      division: 'Division 02 — Commercial Equipment',
-      platform_or_type: 'Frozen Beverage / Slushie Machine',
-      make_model: 'Triple-Bowl Frozen Margarita / Slush Unit',
-      serial_number: 'SN-FB-3391',
-      status: 'On Bench',
     },
   ],
   loaners: [
@@ -586,7 +688,8 @@ const INITIAL_STATE: PlatformState = {
       active_workflow_step: 5,
       pricing_mode: 'Care Plan ($0 Waived)',
       daily_or_incident_rate: 0,
-      customer_machine_bench_status: 'Step 5: Customer unit on 3J Shop Bench (Auger motor + seal kit replacement)',
+      customer_machine_bench_status:
+        'Step 5: Customer unit on 3J Shop Bench (Auger motor + seal kit replacement)',
       sanitation_checklist: {
         wash_rinse_sanitize_completed: false,
         sanitizer_ppm_verified: false,
@@ -595,24 +698,7 @@ const INITIAL_STATE: PlatformState = {
       },
       sanitation_method: '',
       sanitation_tech_initials: '',
-      sanitation_logs: [
-        {
-          id: 'SAN-102',
-          loaner_id: 'LN-02',
-          date: '2026-10-21',
-          method: 'OAC 3717-1-08.1 Full Teardown + 100 ppm Chlorine Sanitize',
-          sanitizer_ppm: '100 ppm Chlorine',
-          tech_initials: 'MW',
-          oac_code: 'OAC 3717-1-08.1',
-          checklist: {
-            wash_rinse_sanitize_completed: true,
-            sanitizer_ppm_verified: true,
-            food_contact_parts_inspected: true,
-            leak_and_freeze_test_passed: true,
-          },
-          verified_by_jason: true,
-        },
-      ],
+      sanitation_logs: [],
     },
     {
       id: 'LN-03',
@@ -625,7 +711,8 @@ const INITIAL_STATE: PlatformState = {
       active_workflow_step: 8,
       pricing_mode: 'Per Incident ($149–249/incident)',
       daily_or_incident_rate: 199,
-      customer_machine_bench_status: 'Step 8: Customer machine returned; Loaner awaiting OAC 3717-1-08.1 Sanitation Gate',
+      customer_machine_bench_status:
+        'Step 8: Customer machine returned; Loaner awaiting OAC 3717-1-08.1 Sanitation Gate',
       sanitation_checklist: {
         wash_rinse_sanitize_completed: true,
         sanitizer_ppm_verified: true,
@@ -656,24 +743,7 @@ const INITIAL_STATE: PlatformState = {
       },
       sanitation_method: 'OAC 3717-1-08.1 Verified 200 ppm Quat',
       sanitation_tech_initials: 'JA',
-      sanitation_logs: [
-        {
-          id: 'SAN-104',
-          loaner_id: 'LN-04',
-          date: '2026-10-29',
-          method: 'OAC 3717-1-08.1 Verified 200 ppm Quat + Brix & Freeze Test',
-          sanitizer_ppm: '200 ppm Quat',
-          tech_initials: 'JA',
-          oac_code: 'OAC 3717-1-08.1',
-          checklist: {
-            wash_rinse_sanitize_completed: true,
-            sanitizer_ppm_verified: true,
-            food_contact_parts_inspected: true,
-            leak_and_freeze_test_passed: true,
-          },
-          verified_by_jason: true,
-        },
-      ],
+      sanitation_logs: [],
     },
     {
       id: 'LN-05',
@@ -686,7 +756,8 @@ const INITIAL_STATE: PlatformState = {
       active_workflow_step: 4,
       pricing_mode: 'Care Plan ($0 Waived)',
       daily_or_incident_rate: 0,
-      customer_machine_bench_status: 'Step 4: Loaner installed on bar counter; customer unit in transit to 3J Bench',
+      customer_machine_bench_status:
+        'Step 4: Loaner installed on bar counter; customer unit in transit to 3J Bench',
       sanitation_checklist: {
         wash_rinse_sanitize_completed: false,
         sanitizer_ppm_verified: false,
@@ -701,7 +772,7 @@ const INITIAL_STATE: PlatformState = {
   jobs: [
     {
       id: 'JOB-201',
-      division: 'Division 02 — Commercial Equipment',
+      division: 'Division 02 — 3JI-Repair',
       customer_id: 'CUST-D2-01',
       business_name: '[Bar Account Placeholder #01 — Lakewood Patio & Tap]',
       city: 'Lakewood',
@@ -709,6 +780,7 @@ const INITIAL_STATE: PlatformState = {
       zip: '44107',
       lat: 41.4819,
       lng: -81.7982,
+      equipment_category: 'Frozen Beverage / Slushie Machines',
       machine_type: 'Frozen Beverage / Slushie Machine (Twin-Bowl)',
       serial_number: 'SN-FB-2104',
       reported_symptom: 'Right barrel auger stalled, drive seal weeping syrup — Loaner Swap Requested',
@@ -723,14 +795,20 @@ const INITIAL_STATE: PlatformState = {
       claimed_by_tech_id: null,
       claimed_by_name: null,
       shadow_requested_by: [],
-      posted_hours_ago: 1.2,
+      posted_hours_ago: 0.6,
+      promised_window: 'Today 1:00 PM – 3:00 PM',
+      escalation_stage: 'Normal (<2h — Matched Techs Notified)',
+      on_jason_tentative_schedule: false,
+      draft_customer_update:
+        'DRAFT (Awaiting Jason Approval): 3JI-Repair has reserved Loaner LN-01 for your Lakewood location; tech arriving between 1:00 PM and 3:00 PM today.',
+      customer_update_approved: false,
       estimated_labor_tier: 'Field ($139–149/hr)',
       estimated_hours: 2.5,
       payout_mode: 'Hub (20% Fee)',
     },
     {
       id: 'JOB-202',
-      division: 'Division 02 — Commercial Equipment',
+      division: 'Division 02 — 3JI-Repair',
       customer_id: 'CUST-D2-02',
       business_name: '[Restaurant Placeholder #02 — West 25th Cantina]',
       city: 'Cleveland',
@@ -738,6 +816,7 @@ const INITIAL_STATE: PlatformState = {
       zip: '44113',
       lat: 41.4846,
       lng: -81.7044,
+      equipment_category: 'Frozen Beverage / Slushie Machines',
       machine_type: 'Frozen Beverage / Margarita Machine (Triple-Bowl)',
       serial_number: 'SN-FB-3391',
       reported_symptom: 'Loaner LN-02 deployed; customer unit on bench for auger gear motor & seal kit',
@@ -749,17 +828,22 @@ const INITIAL_STATE: PlatformState = {
       required_level: 'L1',
       requires_epa_608: false,
       status: 'Bench Repair',
-      claimed_by_tech_id: 'TECH-02',
+      claimed_by_tech_id: 'TECH-03',
       claimed_by_name: 'Devon Carter (L1)',
       shadow_requested_by: ['TECH-04'],
       posted_hours_ago: 18.0,
+      promised_window: 'Loaner Installed — Bench Turnaround ≤5d',
+      escalation_stage: 'Fulfilled / Claimed',
+      on_jason_tentative_schedule: false,
+      draft_customer_update: '',
+      customer_update_approved: true,
       estimated_labor_tier: 'Bench ($119–129/hr)',
       estimated_hours: 3.0,
       payout_mode: 'Hub (20% Fee)',
     },
     {
       id: 'JOB-203',
-      division: 'Division 02 — Commercial Equipment',
+      division: 'Division 02 — 3JI-Repair',
       customer_id: 'CUST-D2-04',
       business_name: '[Bar Placeholder #04 — Tremont Slush & Social]',
       city: 'Cleveland',
@@ -767,6 +851,7 @@ const INITIAL_STATE: PlatformState = {
       zip: '44113',
       lat: 41.4729,
       lng: -81.6931,
+      equipment_category: 'Walk-In Coolers & Freezers',
       machine_type: 'Under-Counter Commercial Ice Machine + Walk-In Cooler',
       serial_number: 'SN-ICE-8820',
       reported_symptom: 'High head pressure, sealed-system R-290/R-404A subcooling & compressor relay check',
@@ -782,13 +867,20 @@ const INITIAL_STATE: PlatformState = {
       claimed_by_name: null,
       shadow_requested_by: [],
       posted_hours_ago: 4.5,
+      promised_window: 'Today 4:00 PM – 6:00 PM (Escalated ≥4h)',
+      escalation_stage:
+        'Escalated to Jason (≥4h or 1h Emergency / 2h Before Window — On Jason Schedule)',
+      on_jason_tentative_schedule: true,
+      draft_customer_update:
+        'DRAFT PROACTIVE UPDATE (Requires Jason Approval): Hi [Tremont Slush & Social], your Walk-In Cooler & Ice Machine service is confirmed for today at 4:30 PM with Master Tech Jason Allen.',
+      customer_update_approved: false,
       estimated_labor_tier: 'Refrigeration / Master ($169–179/hr)',
       estimated_hours: 3.5,
       payout_mode: 'Network (15% Fee)',
     },
     {
       id: 'JOB-204',
-      division: 'Division 02 — Commercial Equipment',
+      division: 'Division 02 — 3JI-Repair',
       customer_id: 'CUST-D2-03',
       business_name: '[Tavern Placeholder #03 — Parma Corner Grille]',
       city: 'Parma',
@@ -796,6 +888,7 @@ const INITIAL_STATE: PlatformState = {
       zip: '44129',
       lat: 41.3912,
       lng: -81.7279,
+      equipment_category: 'Beverage Machines',
       machine_type: 'Frozen Beverage / Slushie Machine (Single-Bowl)',
       serial_number: 'SN-FB-1180',
       reported_symptom: 'Quarterly Care Plan PM: OAC 3717-1-08.1 sanitize, brix calibration (13–15°), seal swap',
@@ -810,21 +903,27 @@ const INITIAL_STATE: PlatformState = {
       claimed_by_tech_id: null,
       claimed_by_name: null,
       shadow_requested_by: [],
-      posted_hours_ago: 2.0,
+      posted_hours_ago: 2.2,
+      promised_window: 'Tomorrow 10:00 AM – 12:00 PM',
+      escalation_stage: 'Widened (≥2h — All Graduated Techs Notified)',
+      on_jason_tentative_schedule: false,
+      draft_customer_update: '',
+      customer_update_approved: false,
       estimated_labor_tier: 'Field ($139–149/hr)',
       estimated_hours: 1.5,
       payout_mode: 'Network (15% Fee)',
     },
     {
       id: 'JOB-205',
-      division: 'Division 02 — Commercial Equipment',
-      customer_id: 'CUST-D2-05',
+      division: 'Division 02 — 3JI-Repair',
+      customer_id: 'CUST-D2-01',
       business_name: '[Venue Placeholder #05 — Rocky River Harbor Lounge]',
       city: 'Rocky River',
       county: 'Cuyahoga',
       zip: '44116',
       lat: 41.4785,
       lng: -81.8389,
+      equipment_category: 'Juice Dispensers & Mixers',
       machine_type: 'Commercial Juice & Frozen Cocktail System',
       serial_number: 'SN-JM-5502',
       reported_symptom: 'Repaired customer unit ready for return swap + retrieve Loaner LN-05',
@@ -840,13 +939,17 @@ const INITIAL_STATE: PlatformState = {
       claimed_by_name: null,
       shadow_requested_by: [],
       posted_hours_ago: 0.8,
+      promised_window: 'Today 3:00 PM – 5:00 PM',
+      escalation_stage: 'Normal (<2h — Matched Techs Notified)',
+      on_jason_tentative_schedule: false,
+      draft_customer_update: '',
+      customer_update_approved: false,
       estimated_labor_tier: 'Refrigeration / Master ($169–179/hr)',
       estimated_hours: 2.0,
       payout_mode: 'Hub (20% Fee)',
     },
   ],
   parts: [
-    // Division 01 Foundry Parts across FDU, MTS 1500, SMARTT, ThermaTest NGIII 5000
     {
       id: 'PART-D1-01',
       sku: '3J-FDU-XSR220',
@@ -856,8 +959,8 @@ const INITIAL_STATE: PlatformState = {
       system_fit: 'FDU',
       serial_fit_notes: 'Serial-verified fit for Foseco FDU rotary degassers (XSR/FDR spindle flange)',
       unit_cost: 680,
-      list_price_35: 918, // 680 * 1.35
-      contract_price_25: 850, // 680 * 1.25
+      list_price_35: 918,
+      contract_price_25: 850,
       qty_on_hand: 6,
       reorder_point: 3,
       supplier: 'Foseco / Vesuvius Spec Certified Supply',
@@ -871,9 +974,9 @@ const INITIAL_STATE: PlatformState = {
       system_fit: 'MTS 1500',
       serial_fit_notes: 'Matched to MTS 1500 melt treatment stations; requires serial check for shaft length',
       unit_cost: 840,
-      list_price_35: 1134, // 840 * 1.35
-      contract_price_25: 1050, // 840 * 1.25
-      qty_on_hand: 2, // Low stock!
+      list_price_35: 1134,
+      contract_price_25: 1050,
+      qty_on_hand: 2,
       reorder_point: 4,
       supplier: 'Foseco / Vesuvius Spec Certified Supply',
     },
@@ -886,8 +989,8 @@ const INITIAL_STATE: PlatformState = {
       system_fit: 'SMARTT',
       serial_fit_notes: 'Fits SMARTT automated rotary degassing & flux injection units',
       unit_cost: 520,
-      list_price_35: 702, // 520 * 1.35
-      contract_price_25: 650, // 520 * 1.25
+      list_price_35: 702,
+      contract_price_25: 650,
       qty_on_hand: 5,
       reorder_point: 3,
       supplier: 'Foseco / Vesuvius Spec Certified Supply',
@@ -901,8 +1004,8 @@ const INITIAL_STATE: PlatformState = {
       system_fit: 'MTS 1500',
       serial_fit_notes: 'Calibrated grain size for MTS 1500 & SMARTT rotary flux feeders',
       unit_cost: 320,
-      list_price_35: 432, // 320 * 1.35
-      contract_price_25: 400, // 320 * 1.25
+      list_price_35: 432,
+      contract_price_25: 400,
       qty_on_hand: 11,
       reorder_point: 5,
       supplier: 'Foseco / Vesuvius Spec Certified Supply',
@@ -916,24 +1019,23 @@ const INITIAL_STATE: PlatformState = {
       system_fit: 'ThermaTest NGIII 5000',
       serial_fit_notes: 'Direct fit for ThermaTest NGIII 5000 stands; NIST-traceable calibration match',
       unit_cost: 440,
-      list_price_35: 594, // 440 * 1.35
-      contract_price_25: 550, // 440 * 1.25
-      qty_on_hand: 2, // Low stock!
+      list_price_35: 594,
+      contract_price_25: 550,
+      qty_on_hand: 2,
       reorder_point: 4,
       supplier: 'Foseco / Vesuvius Spec Certified Supply',
     },
-    // Division 02 Food Service Parts
     {
       id: 'PART-D2-01',
       sku: '3J-FB-SEAL12',
-      division: 'Division 02 — Commercial Equipment',
+      division: 'Division 02 — 3JI-Repair',
       family: 'Seals, Gaskets & Bushings',
       name: 'Universal Twin/Triple Slushie Bowl Rear Seal, Bushing & Food-Grade O-Ring Kit',
       system_fit: 'Frozen Beverage / Slushie',
       serial_fit_notes: 'Fits Bunn Ultra-2, Elmeco, Ugolini, Donper & Vollrath 12L bowls',
       unit_cost: 40,
-      list_price_35: 54, // 40 * 1.35
-      contract_price_25: 50, // 40 * 1.25
+      list_price_35: 54,
+      contract_price_25: 50,
       qty_on_hand: 18,
       reorder_point: 6,
       supplier: 'Cleveland Commercial Bev Supply',
@@ -941,29 +1043,29 @@ const INITIAL_STATE: PlatformState = {
     {
       id: 'PART-D2-02',
       sku: '3J-FB-AUGMTR',
-      division: 'Division 02 — Commercial Equipment',
+      division: 'Division 02 — 3JI-Repair',
       family: 'Auger Drive Motors & Gearboxes',
       name: 'Heavy-Duty 24V/115V Auger Gear Motor Assembly',
       system_fit: 'Frozen Beverage / Slushie',
       serial_fit_notes: 'High-torque replacement gearbox for twin/triple frozen drink dispensers',
       unit_cost: 160,
-      list_price_35: 216, // 160 * 1.35
-      contract_price_25: 200, // 160 * 1.25
-      qty_on_hand: 3, // Low stock!
+      list_price_35: 216,
+      contract_price_25: 200,
+      qty_on_hand: 3,
       reorder_point: 4,
       supplier: 'Cleveland Commercial Bev Supply',
     },
     {
       id: 'PART-D2-03',
       sku: '3J-ICE-COMP404',
-      division: 'Division 02 — Commercial Equipment',
+      division: 'Division 02 — 3JI-Repair',
       family: 'Compressors, Relays & Control Boards',
       name: 'Commercial Refrigeration Compressor Start Relay + Main Control Board Kit',
       system_fit: 'Ice Machine / Cooler',
       serial_fit_notes: 'EPA 608 L2/L3 certified installation required',
       unit_cost: 220,
-      list_price_35: 297, // 220 * 1.35
-      contract_price_25: 275, // 220 * 1.25
+      list_price_35: 297,
+      contract_price_25: 275,
       qty_on_hand: 7,
       reorder_point: 3,
       supplier: 'Great Lakes HVAC/R Supply',
@@ -978,7 +1080,7 @@ const INITIAL_STATE: PlatformState = {
       qty_delta: -1,
       reference_type: 'Job',
       reference_id: 'JOB-202',
-      timestamp: '2026-10-31T14:20:00Z',
+      timestamp: '2026-11-02T14:20:00Z',
     },
     {
       id: 'TXN-02',
@@ -988,7 +1090,7 @@ const INITIAL_STATE: PlatformState = {
       qty_delta: -2,
       reference_type: 'Quote',
       reference_id: 'QT-1001',
-      timestamp: '2026-10-31T15:10:00Z',
+      timestamp: '2026-11-02T15:10:00Z',
     },
   ],
   quotes: [
@@ -1035,11 +1137,11 @@ const INITIAL_STATE: PlatformState = {
       sla_hours_remaining: 6.5,
       turnaround_hours: 4.2,
       status: 'Needs Jason Approval',
-      created_at: '2026-10-31T12:15:00Z',
+      created_at: '2026-11-02T12:15:00Z',
     },
     {
       id: 'QT-1002',
-      division: 'Division 02 — Commercial Equipment',
+      division: 'Division 02 — 3JI-Repair',
       customer_id: 'CUST-D2-01',
       business_name: '[Bar Account Placeholder #01 — Lakewood Patio & Tap]',
       city_state: 'Lakewood, OH (Cuyahoga County)',
@@ -1076,16 +1178,16 @@ const INITIAL_STATE: PlatformState = {
           sell_price: 54,
         },
       ],
-      total_amount: 645, // $99 diag - $99 credit + (3 * 125 = 375) + 216 + 54 + $0 loaner
+      total_amount: 645,
       sla_hours_remaining: 14.2,
       turnaround_hours: 2.8,
       status: 'Approved / Sent',
-      created_at: '2026-10-31T10:30:00Z',
+      created_at: '2026-11-02T10:30:00Z',
     },
     {
       id: 'QT-1003',
       division: 'Division 01 — Foundry',
-      customer_id: 'CUST-D1-02',
+      customer_id: 'CUST-D1-01',
       business_name: '[Foundry Account Placeholder #02 — Great Lakes Die Cast]',
       city_state: 'Fort Wayne, IN (Nationwide Foundry Support)',
       system_or_machine: 'MTS 1500 & ThermaTest NGIII 5000',
@@ -1125,13 +1227,13 @@ const INITIAL_STATE: PlatformState = {
       sla_hours_remaining: 18.0,
       turnaround_hours: 5.1,
       status: 'Accepted',
-      created_at: '2026-10-30T16:00:00Z',
+      created_at: '2026-11-01T16:00:00Z',
     },
   ],
   bookings: [
     {
       id: 'BK-301',
-      division: 'Division 02 — Commercial Equipment',
+      division: 'Division 02 — 3JI-Repair',
       business_name: '[Bar Account Placeholder #01 — Lakewood Patio & Tap]',
       address: '14800 Detroit Ave [Placeholder]',
       city: 'Lakewood',
@@ -1139,13 +1241,13 @@ const INITIAL_STATE: PlatformState = {
       zip: '44107',
       county: 'Cuyahoga',
       cuyahoga_verified: true,
-      machine_or_system: 'Frozen Beverage / Slushie Machine (Twin-Bowl)',
+      machine_or_system: 'Frozen Beverage / Slushie Machines',
       serial_number: 'SN-FB-2104',
       symptom: 'Right bowl not freezing, auger seal leaking — Priority Care Plan Swap',
       preferred_window: 'Today 1:00 PM – 3:00 PM (Priority Care Plan)',
       care_plan_member: true,
       status: 'Scheduled on Map',
-      created_at: '2026-10-31T11:00:00Z',
+      created_at: '2026-11-02T11:00:00Z',
     },
     {
       id: 'BK-302',
@@ -1163,13 +1265,14 @@ const INITIAL_STATE: PlatformState = {
       preferred_window: 'Next Tuesday 8:00 AM EST',
       care_plan_member: true,
       status: 'Scheduled on Map',
-      created_at: '2026-10-31T09:15:00Z',
+      created_at: '2026-11-02T09:15:00Z',
     },
   ],
   techs: [
     {
       id: 'TECH-01',
       name: 'Marcus Vance (L3 Master / Foundry)',
+      contact_info: '216-555-0201 · mvance@3jirepair.example · Cuyahoga & Foundry Master',
       cohort: 'Cohort 01 — Inaugural Trade Track',
       level: 'L3 — Master / Foundry',
       can_claim_solo: true,
@@ -1179,6 +1282,13 @@ const INITIAL_STATE: PlatformState = {
       epa_608_cert_number: 'EPA-608-UNIV-99281',
       coi_verified_1m: true,
       coi_expiry: '2027-06-30',
+      skills_and_certs: [
+        'EPA 608 Universal Certified',
+        'COI ≥ $1M Verified (Exp 2027-06-30)',
+        'OAC 3717-1-08.1 Sanitation Certified',
+        'Division 01 Foundry Mentorship (FDU / MTS 1500 / SMARTT / ThermaTest)',
+      ],
+      job_types: [...EQUIPMENT_SCOPE_3JI_REPAIR],
       shadow_swaps_completed: 12,
       supervised_bench_hours: 140,
       jobs_completed_30d: 19,
@@ -1197,6 +1307,7 @@ const INITIAL_STATE: PlatformState = {
     {
       id: 'TECH-02',
       name: 'Elena Rostova (L2 Sealed System / EPA 608)',
+      contact_info: '216-555-0202 · erostova@3jirepair.example · Cuyahoga Refrigeration Specialist',
       cohort: 'Cohort 01 — Inaugural Trade Track',
       level: 'L2 — Sealed System / EPA 608',
       can_claim_solo: true,
@@ -1206,6 +1317,26 @@ const INITIAL_STATE: PlatformState = {
       epa_608_cert_number: 'EPA-608-TYPE2-77410',
       coi_verified_1m: true,
       coi_expiry: '2027-04-15',
+      skills_and_certs: [
+        'EPA 608 Type II & Universal Sealed System',
+        'COI ≥ $1M Verified (Exp 2027-04-15)',
+        'OAC 3717-1-08.1 Sanitation Certified',
+        'R-290 / R-404A Subcooling & Compressor Diagnostics',
+      ],
+      job_types: [
+        'Refrigerators',
+        'Coolers',
+        'Freezers',
+        'Ice Machines',
+        'HVAC',
+        'Walk-In Coolers & Freezers',
+        'Reach-In & Undercounter Refrigeration',
+        'Display Merchandiser Cases',
+        'Draft Beer Systems & Glycol Chillers',
+        'Bottle Coolers & Kegerators',
+        'Frozen Beverage / Slushie Machines',
+        'Beverage Machines',
+      ],
       shadow_swaps_completed: 8,
       supervised_bench_hours: 95,
       jobs_completed_30d: 15,
@@ -1224,6 +1355,7 @@ const INITIAL_STATE: PlatformState = {
     {
       id: 'TECH-03',
       name: 'Devon Carter (L1 PM / Swap)',
+      contact_info: '216-555-0203 · dcarter@3jirepair.example · Cuyahoga Beverage & Loaner Tech',
       cohort: 'Cohort 02 — Cuyahoga Fall Cohort',
       level: 'L1 — PM / Swap',
       can_claim_solo: true,
@@ -1233,6 +1365,19 @@ const INITIAL_STATE: PlatformState = {
       epa_608_cert_number: 'Pending EPA 608 Exam',
       coi_verified_1m: true,
       coi_expiry: '2027-03-01',
+      skills_and_certs: [
+        '3JI-Repair L1 Graduated (Signed Off by Jason Allen)',
+        'OAC 3717-1-08.1 Food-Code Sanitation Certified',
+        'COI ≥ $1M Verified (Exp 2027-03-01)',
+        'Brix Calibration (13–15°) & Auger/Seal Rebuild',
+      ],
+      job_types: [
+        'Beverage Machines',
+        'Frozen Beverage / Slushie Machines',
+        'Ice Dispensers & Bins',
+        'Soda Fountain & Carbonation Systems',
+        'Juice Dispensers & Mixers',
+      ],
       shadow_swaps_completed: 6,
       supervised_bench_hours: 64,
       jobs_completed_30d: 11,
@@ -1250,9 +1395,10 @@ const INITIAL_STATE: PlatformState = {
     },
     {
       id: 'TECH-04',
-      name: 'Jordan Morales (Junior Tech / Trainee — Ready for Graduation)',
+      name: 'Jordan Morales (3JI-Repair Trainee — Ready for Graduation)',
+      contact_info: '216-555-0204 · jmorales@3jirepair.example · Cohort 02 Trainee',
       cohort: 'Cohort 02 — Cuyahoga Fall Cohort',
-      level: 'Junior Tech / Trainee',
+      level: '3JI-Repair Trainee',
       can_claim_solo: false,
       graduated_signed_off_by_jason: false,
       division_01_foundry_track: false,
@@ -1260,6 +1406,16 @@ const INITIAL_STATE: PlatformState = {
       epa_608_cert_number: 'In Curriculum Study',
       coi_verified_1m: true,
       coi_expiry: '2027-08-01',
+      skills_and_certs: [
+        '5/5 Shadowed Field Swaps Completed',
+        'OAC 3717-1-08.1 Sanitation Procedure Passed',
+        'Awaiting Jason Allen In-App Graduation Sign-Off',
+      ],
+      job_types: [
+        'Frozen Beverage / Slushie Machines',
+        'Beverage Machines',
+        'Juice Dispensers & Mixers',
+      ],
       shadow_swaps_completed: 5,
       supervised_bench_hours: 48,
       jobs_completed_30d: 0,
@@ -1277,9 +1433,10 @@ const INITIAL_STATE: PlatformState = {
     },
     {
       id: 'TECH-05',
-      name: 'Tariq Brooks (Junior Tech / Trainee — Bench & Shadow Track)',
+      name: 'Tariq Brooks (3JI-Repair Trainee — Bench & Shadow Track)',
+      contact_info: '216-555-0205 · tbrooks@3jirepair.example · Cohort 02 Trainee',
       cohort: 'Cohort 02 — Cuyahoga Fall Cohort',
-      level: 'Junior Tech / Trainee',
+      level: '3JI-Repair Trainee',
       can_claim_solo: false,
       graduated_signed_off_by_jason: false,
       division_01_foundry_track: false,
@@ -1287,6 +1444,11 @@ const INITIAL_STATE: PlatformState = {
       epa_608_cert_number: 'In Curriculum Study',
       coi_verified_1m: true,
       coi_expiry: '2027-08-01',
+      skills_and_certs: [
+        '3/5 Shadowed Field Swaps Completed',
+        'Bench Teardown & Seal Replacement Active',
+      ],
+      job_types: ['Frozen Beverage / Slushie Machines', 'Beverage Machines'],
       shadow_swaps_completed: 3,
       supervised_bench_hours: 32,
       jobs_completed_30d: 0,
@@ -1371,8 +1533,8 @@ const INITIAL_STATE: PlatformState = {
     },
     {
       id: 'INV-9004',
-      customer_name: 'Cuyahoga County Care Plans & Bench Repairs (14 Active Accounts)',
-      division: 'Division 02 — Commercial Equipment',
+      customer_name: '3JI-Repair Cuyahoga Care Plans & Bench Repairs (14 Active Accounts)',
+      division: 'Division 02 — 3JI-Repair',
       amount: 9640,
       paid_amount: 9640,
       aging_bucket: 'Current (0–30d)',
@@ -1381,68 +1543,76 @@ const INITIAL_STATE: PlatformState = {
     {
       id: 'INV-9005',
       customer_name: '[Bar Placeholder #04 — Tremont Slush & Social]',
-      division: 'Division 02 — Commercial Equipment',
+      division: 'Division 02 — 3JI-Repair',
       amount: 685,
       paid_amount: 0,
       aging_bucket: '31–60d',
       status: 'Open AR',
     },
   ],
+  // Support Docs library ships EMPTY per spec (Alex, 2026-11-02)
+  support_docs: [],
   needs_jason: [
     {
       id: 'NJ-01',
       category: 'Quote Approval',
       division: 'Division 01 — Foundry',
       title: 'Approve Quote QT-1001 ($3,750) — SMARTT & FDU Spare Parts + Health Check',
-      detail: 'Draft quote for [Foundry Account Placeholder #01]. 6.5h remaining on <24h estimate promise. Nothing sends without Jason approval.',
+      detail:
+        'Draft quote for [Foundry Account Placeholder #01]. 6.5h remaining on <24h estimate promise. Nothing sends without Jason approval.',
       priority: 'CRITICAL',
       status: 'Pending Jason',
       linked_entity_id: 'QT-1001',
-      created_at: '2026-10-31T12:20:00Z',
+      created_at: '2026-11-02T12:20:00Z',
     },
     {
       id: 'NJ-02',
-      category: 'Junior Tech Graduation Sign-Off',
-      division: 'Junior Tech Program',
+      category: '3JI-Repair Trainee Graduation Sign-Off',
+      division: '3JI-Repair & Tech Network',
       title: 'Graduation Sign-Off: Jordan Morales (Cohort 02 -> L1 PM / Swap)',
-      detail: 'Completed all 5 curriculum milestones + 5 shadowed field swaps + OAC 3717-1-08.1 sanitation sign-off. Sign-off unlocks solo L1 job claiming.',
+      detail:
+        'Completed all 5 curriculum milestones + 5 shadowed field swaps + OAC 3717-1-08.1 sanitation sign-off. Sign-off unlocks solo L1 job claiming in 3JI-Repair.',
       priority: 'HIGH',
       status: 'Pending Jason',
       linked_entity_id: 'TECH-04',
-      created_at: '2026-10-31T11:45:00Z',
+      created_at: '2026-11-02T11:45:00Z',
     },
     {
       id: 'NJ-03',
       category: 'Sanitizing Log Sign-Off',
-      division: 'Division 02 — Commercial Equipment',
+      division: 'Division 02 — 3JI-Repair',
       title: 'Loaner LN-03 Returned from Parma — Pending OAC 3717-1-08.1 Sanitation Gate',
-      detail: 'Loaner LN-03 is in Sanitizing & Bench Prep (Step 8). Cannot return to Available until all 4 OAC 3717-1-08.1 sanitation checks are verified.',
+      detail:
+        'Loaner LN-03 is in Sanitizing & Bench Prep (Step 8). Cannot return to Available until all 4 OAC 3717-1-08.1 sanitation checks are verified.',
       priority: 'HIGH',
       status: 'Pending Jason',
       linked_entity_id: 'LN-03',
-      created_at: '2026-10-31T13:10:00Z',
+      created_at: '2026-11-02T13:10:00Z',
     },
     {
       id: 'NJ-04',
-      category: 'Unclaimed Job > 4h',
-      division: 'Division 02 — Commercial Equipment',
-      title: 'Unclaimed L2 Refrigeration Job > 4.5 Business Hours (JOB-203 — Tremont)',
-      detail: 'Requires L2 EPA 608 certified tech. Posted 4.5h ago; assign Elena Rostova (L2) or Marcus Vance (L3).',
+      category: 'Opportunity Escalated (Module 1 Retention Rule)',
+      division: 'Division 02 — 3JI-Repair',
+      title:
+        'Escalated Opportunity > 4h (JOB-203 — Tremont Walk-In Cooler & Ice Machine) — Landed on Jason Schedule',
+      detail:
+        'Unclaimed at 4.5 business hours: automatically placed on Jason Allen tentative schedule per Module 1 customer-retention rule + draft-first proactive customer update ready for approval.',
       priority: 'CRITICAL',
       status: 'Pending Jason',
       linked_entity_id: 'JOB-203',
-      created_at: '2026-10-31T14:00:00Z',
+      created_at: '2026-11-02T14:00:00Z',
     },
     {
       id: 'NJ-05',
       category: 'Low-Stock Critical Part',
       division: 'Division 01 — Foundry',
       title: 'Low Stock Alert: 3J-MTS-FDR1500 Rotor (2 on hand / Reorder Pt 4) & 3J-TT5-CUP100',
-      detail: 'MTS 1500 FDDR Rotor (qty 2) and ThermaTest NGIII 5000 Cups (qty 2) + Div 02 Auger Motor (qty 3) below reorder point.',
+      detail:
+        'MTS 1500 FDDR Rotor (qty 2) and ThermaTest NGIII 5000 Cups (qty 2) + 3JI-Repair Auger Motor (qty 3) below reorder point.',
       priority: 'STANDARD',
       status: 'Pending Jason',
       linked_entity_id: 'PART-D1-02',
-      created_at: '2026-10-31T08:30:00Z',
+      created_at: '2026-11-02T08:30:00Z',
     },
   ],
   pipeline_funnel: {
@@ -1478,13 +1648,13 @@ const INITIAL_STATE: PlatformState = {
     },
     {
       id: 'TGT-30-D2',
-      division: 'Division 02 — Commercial',
+      division: 'Division 02 — 3JI-Repair',
       horizon: '30-Day',
-      activity_metric_label: 'Cuyahoga County Diagnostics ($99), Loaner Swaps & Care Plan Demos',
+      activity_metric_label: '3JI-Repair Cuyahoga Diagnostics ($99), Loaner Swaps & Care Plan Demos',
       activity_current: 19,
       activity_target: 25,
       activity_unit: 'swaps / demos',
-      dollar_metric_label: 'Division 02 Care Plan MRR + Bench/Field Repair Revenue',
+      dollar_metric_label: '3JI-Repair Care Plan MRR + Bench/Field Repair Revenue',
       dollar_current: 9640,
       dollar_target: 12500,
     },
@@ -1492,7 +1662,8 @@ const INITIAL_STATE: PlatformState = {
       id: 'TGT-60-D1',
       division: 'Division 01 — Foundry',
       horizon: '60-Day',
-      activity_metric_label: 'Foundry Health Checks & Active Multi-System Accounts (FDU/MTS/SMARTT/ThermaTest)',
+      activity_metric_label:
+        'Foundry Health Checks & Active Multi-System Accounts (FDU/MTS/SMARTT/ThermaTest)',
       activity_current: 18,
       activity_target: 28,
       activity_unit: 'active accounts',
@@ -1502,13 +1673,13 @@ const INITIAL_STATE: PlatformState = {
     },
     {
       id: 'TGT-60-D2',
-      division: 'Division 02 — Commercial',
+      division: 'Division 02 — 3JI-Repair',
       horizon: '60-Day',
-      activity_metric_label: 'Active Cuyahoga Care Plan Locations & Graduated Junior Techs',
+      activity_metric_label: 'Active Cuyahoga Care Plan Locations & Graduated 3JI-Repair Techs',
       activity_current: 14,
       activity_target: 24,
       activity_unit: 'care plan locations',
-      dollar_metric_label: 'Division 02 Recurring Care Plan MRR + Repair Revenue (60d)',
+      dollar_metric_label: '3JI-Repair Recurring Care Plan MRR + Repair Revenue (60d)',
       dollar_current: 18900,
       dollar_target: 28000,
     },
@@ -1516,7 +1687,8 @@ const INITIAL_STATE: PlatformState = {
       id: 'TGT-90-D1',
       division: 'Division 01 — Foundry',
       horizon: '90-Day',
-      activity_metric_label: 'Quarterly Health Checks (≥8/qtr) + Junior Techs on Div 01 Foundry Mentorship',
+      activity_metric_label:
+        'Quarterly Health Checks (≥8/qtr) + 3JI-Repair Graduates on Div 01 Foundry Mentorship',
       activity_current: 9,
       activity_target: 12,
       activity_unit: 'health checks & mentees',
@@ -1526,13 +1698,14 @@ const INITIAL_STATE: PlatformState = {
     },
     {
       id: 'TGT-90-D2',
-      division: 'Junior Tech Program',
+      division: '3JI-Repair & Tech Network',
       horizon: '90-Day',
-      activity_metric_label: 'Junior Tech Cohort Graduates (L1 Certified) + Div 01 Foundry Track Recruits',
+      activity_metric_label:
+        '3JI-Repair Cohort Graduates (L1 Certified) + Div 01 Foundry Track Recruits',
       activity_current: 3,
       activity_target: 6,
       activity_unit: 'graduated techs',
-      dollar_metric_label: 'Tech Network Marketplace Gross Volume (15% Network / 20% Hub)',
+      dollar_metric_label: '3JI-Repair Tech Network Gross Volume (15% Network / 20% Hub)',
       dollar_current: 14200,
       dollar_target: 25000,
     },
