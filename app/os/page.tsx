@@ -56,6 +56,7 @@ export default function OSCommandCenterPage() {
   const [quoteSystem, setQuoteSystem] = useState('FDU & SMARTT Degassing Rotor + Health Check');
   const [quoteSerial, setQuoteSerial] = useState('SN-FDU-7741A');
   const [quoteTotal, setQuoteTotal] = useState(2150);
+  const [sourceSiteFilter, setSourceSiteFilter] = useState<'all' | 'foundry' | 'commercial'>('all');
 
   const fetchState = useCallback(async () => {
     const res = await fetch('/api/state', { cache: 'no-store' });
@@ -473,6 +474,52 @@ export default function OSCommandCenterPage() {
               </div>
             </div>
 
+            {/* Source Site Filter Bar (Two-Site Split: Foundry vs 3JI-Repair Commercial) */}
+            <div className="flex flex-wrap items-center justify-between gap-3 bg-zinc-950 border border-zinc-800 p-3 rounded">
+              <div className="flex items-center gap-2 text-xs font-mono">
+                <span className="text-zinc-400 uppercase font-bold">Front-Door Source Filter:</span>
+                <span className="text-zinc-500 hidden sm:inline">(Filter leads, quotes &amp; dispatch by originating website)</span>
+              </div>
+              <div className="flex items-center gap-2 text-xs font-mono">
+                <button
+                  type="button"
+                  data-testid="filter-source-all"
+                  onClick={() => setSourceSiteFilter('all')}
+                  className={`px-3 py-1 rounded uppercase font-bold transition cursor-pointer ${
+                    sourceSiteFilter === 'all'
+                      ? 'bg-[#5ADCC8] text-black shadow'
+                      : 'bg-zinc-900 text-zinc-400 hover:text-white border border-zinc-800'
+                  }`}
+                >
+                  All Sources
+                </button>
+                <button
+                  type="button"
+                  data-testid="filter-source-foundry"
+                  onClick={() => setSourceSiteFilter('foundry')}
+                  className={`px-3 py-1 rounded uppercase font-bold transition cursor-pointer ${
+                    sourceSiteFilter === 'foundry'
+                      ? 'bg-amber-400 text-black shadow'
+                      : 'bg-zinc-900 text-amber-400/80 hover:text-amber-300 border border-zinc-800'
+                  }`}
+                >
+                  Foundry Site (Div 01)
+                </button>
+                <button
+                  type="button"
+                  data-testid="filter-source-commercial"
+                  onClick={() => setSourceSiteFilter('commercial')}
+                  className={`px-3 py-1 rounded uppercase font-bold transition cursor-pointer ${
+                    sourceSiteFilter === 'commercial'
+                      ? 'bg-[#5ADCC8] text-black shadow'
+                      : 'bg-zinc-900 text-[#5ADCC8] hover:text-white border border-zinc-800'
+                  }`}
+                >
+                  Commercial Site (3JI-Repair)
+                </button>
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
               {/* TILE 1: Needs Jason Queue (including Module 1 Retention Escalations) */}
               <div
@@ -501,31 +548,45 @@ export default function OSCommandCenterPage() {
                   </p>
 
                   <div className="space-y-2.5 max-h-80 overflow-y-auto pr-1">
-                    {state.needs_jason.map((item) => {
-                      const isDone = item.status === 'Approved / Signed Off';
-                      return (
-                        <div
-                          key={item.id}
-                          data-testid={`needs-jason-item-${item.id}`}
-                          className={`p-3 rounded border transition ${
-                            isDone
-                              ? 'bg-black/50 border-zinc-800 opacity-65'
-                              : 'bg-black border-zinc-700 hover:border-[#5ADCC8]'
-                          }`}
-                        >
-                          <div className="flex flex-wrap items-start justify-between gap-2">
-                            <div className="space-y-1 flex-1">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded bg-zinc-900 text-[#5ADCC8] border border-zinc-700">
-                                  {item.category}
-                                </span>
-                                <span className="text-[10px] font-mono text-zinc-400">
-                                  {item.division}
-                                </span>
+                    {state.needs_jason
+                      .filter((item) => {
+                        if (sourceSiteFilter === 'all') return true;
+                        const isFoundry = item.source_site === 'foundry' || item.division?.includes('Foundry');
+                        return sourceSiteFilter === 'foundry' ? isFoundry : !isFoundry;
+                      })
+                      .map((item) => {
+                        const isDone = item.status === 'Approved / Signed Off';
+                        const isFoundry = item.source_site === 'foundry' || item.division?.includes('Foundry');
+                        return (
+                          <div
+                            key={item.id}
+                            data-testid={`needs-jason-item-${item.id}`}
+                            className={`p-3 rounded border transition ${
+                              isDone
+                                ? 'bg-black/50 border-zinc-800 opacity-65'
+                                : 'bg-black border-zinc-700 hover:border-[#5ADCC8]'
+                            }`}
+                          >
+                            <div className="flex flex-wrap items-start justify-between gap-2">
+                              <div className="space-y-1 flex-1">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded bg-zinc-900 text-[#5ADCC8] border border-zinc-700">
+                                    {item.category}
+                                  </span>
+                                  <span className={`text-[9px] font-mono uppercase px-1.5 py-0.5 rounded ${
+                                    isFoundry
+                                      ? 'bg-amber-950/80 text-amber-400 border border-amber-700/60'
+                                      : 'bg-teal-950/80 text-[#5ADCC8] border border-[#5ADCC8]/60'
+                                  }`}>
+                                    {isFoundry ? 'Foundry Site' : 'Commercial Site'}
+                                  </span>
+                                  <span className="text-[10px] font-mono text-zinc-400">
+                                    {item.division}
+                                  </span>
+                                </div>
+                                <div className="text-xs font-bold text-white">{item.title}</div>
+                                <div className="text-[11px] text-zinc-400">{item.detail}</div>
                               </div>
-                              <div className="text-xs font-bold text-white">{item.title}</div>
-                              <div className="text-[11px] text-zinc-400">{item.detail}</div>
-                            </div>
 
                             <div>
                               {isDone ? (
@@ -579,57 +640,73 @@ export default function OSCommandCenterPage() {
                   </p>
 
                   <div className="space-y-2.5">
-                    {state.quotes.map((q) => (
-                      <div
-                        key={q.id}
-                        data-testid={`os-quote-row-${q.id}`}
-                        className="p-3 rounded bg-black border border-zinc-800 flex flex-wrap items-center justify-between gap-3"
-                      >
-                        <div className="space-y-1">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-xs font-mono font-bold text-[#5ADCC8]">
-                              {q.id}
-                            </span>
-                            <span className="text-xs font-bold text-white">{q.business_name}</span>
-                            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-900 text-zinc-300 border border-zinc-700">
-                              {q.division}
-                            </span>
-                          </div>
-                          <div className="text-[11px] text-zinc-400">
-                            {q.system_or_machine} · Serial:{' '}
-                            <span className="font-mono text-zinc-200">{q.serial_number}</span>
-                          </div>
-                          <div className="text-[11px] font-mono text-zinc-300">
-                            Labor: {q.labor_tier} · Markup:{' '}
-                            {q.contract_pricing ? '+25% Contract' : '+35% Standard'} · Total:{' '}
-                            <strong className="text-[#5ADCC8]">
-                              ${q.total_amount.toLocaleString()}
-                            </strong>
-                          </div>
-                        </div>
+                    {state.quotes
+                      .filter((q) => {
+                        if (sourceSiteFilter === 'all') return true;
+                        const isFoundry = q.source_site === 'foundry' || q.division?.includes('Foundry');
+                        return sourceSiteFilter === 'foundry' ? isFoundry : !isFoundry;
+                      })
+                      .map((q) => {
+                        const isFoundry = q.source_site === 'foundry' || q.division?.includes('Foundry');
+                        return (
+                          <div
+                            key={q.id}
+                            data-testid={`os-quote-row-${q.id}`}
+                            className="p-3 rounded bg-black border border-zinc-800 flex flex-wrap items-center justify-between gap-3"
+                          >
+                            <div className="space-y-1">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="text-xs font-mono font-bold text-[#5ADCC8]">
+                                  {q.id}
+                                </span>
+                                <span className="text-xs font-bold text-white">{q.business_name}</span>
+                                <span className={`text-[9px] font-mono uppercase px-1.5 py-0.5 rounded ${
+                                  isFoundry
+                                    ? 'bg-amber-950/80 text-amber-400 border border-amber-700/60'
+                                    : 'bg-teal-950/80 text-[#5ADCC8] border border-[#5ADCC8]/60'
+                                }`}>
+                                  {isFoundry ? 'Foundry Site' : 'Commercial Site'}
+                                </span>
+                                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-900 text-zinc-300 border border-zinc-700">
+                                  {q.division}
+                                </span>
+                              </div>
+                              <div className="text-[11px] text-zinc-400">
+                                {q.system_or_machine} · Serial:{' '}
+                                <span className="font-mono text-zinc-200">{q.serial_number}</span>
+                              </div>
+                              <div className="text-[11px] font-mono text-zinc-300">
+                                Labor: {q.labor_tier} · Markup:{' '}
+                                {q.contract_pricing ? '+25% Contract' : '+35% Standard'} · Total:{' '}
+                                <strong className="text-[#5ADCC8]">
+                                  ${q.total_amount.toLocaleString()}
+                                </strong>
+                              </div>
+                            </div>
 
-                        <div className="flex flex-col items-end gap-1.5">
-                          <div className="px-2 py-0.5 rounded bg-[#5ADCC8]/15 border border-[#5ADCC8]/50 text-[#5ADCC8] font-mono text-[11px] font-bold">
-                            ⏱ {q.sla_hours_remaining.toFixed(1)}h left on &lt;24h SLA
+                            <div className="flex flex-col items-end gap-1.5">
+                              <div className="px-2 py-0.5 rounded bg-[#5ADCC8]/15 border border-[#5ADCC8]/50 text-[#5ADCC8] font-mono text-[11px] font-bold">
+                                ⏱ {q.sla_hours_remaining.toFixed(1)}h left on &lt;24h SLA
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-[11px] font-mono text-zinc-300">
+                                  Status: <strong>{q.status}</strong>
+                                </span>
+                                {q.status === 'Needs Jason Approval' && (
+                                  <button
+                                    type="button"
+                                    data-testid={`os-approve-quote-${q.id}`}
+                                    onClick={() => handleApproveQuote(q.id)}
+                                    className="px-2.5 py-1 rounded bg-[#5ADCC8] text-black font-black uppercase text-[10px] cursor-pointer"
+                                  >
+                                    Approve Quote
+                                  </button>
+                                )}
+                              </div>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-[11px] font-mono text-zinc-300">
-                              Status: <strong>{q.status}</strong>
-                            </span>
-                            {q.status === 'Needs Jason Approval' && (
-                              <button
-                                type="button"
-                                data-testid={`os-approve-quote-${q.id}`}
-                                onClick={() => handleApproveQuote(q.id)}
-                                className="px-2.5 py-1 rounded bg-[#5ADCC8] text-black font-black uppercase text-[10px] cursor-pointer"
-                              >
-                                Approve Quote
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+                        );
+                      })}
                   </div>
                 </div>
               </div>
@@ -662,51 +739,67 @@ export default function OSCommandCenterPage() {
                     <span>OPPORTUNITIES &amp; RETENTION ESCALATION RULE</span>
                     <span className="text-[#5ADCC8]">{escalatedJobsCount} On Jason Schedule</span>
                   </div>
-                  {state.jobs.map((job) => (
-                    <div
-                      key={job.id}
-                      data-testid={`os-opportunity-row-${job.id}`}
-                      className="p-2 rounded bg-zinc-950 border border-zinc-800 space-y-1.5 text-xs"
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2">
-                          <span
-                            className={`h-2.5 w-2.5 rounded-full shrink-0 ${
-                              job.dot_color === 'red'
-                                ? 'bg-red-500'
-                                : job.dot_color === 'amber'
-                                ? 'bg-amber-400'
-                                : 'bg-[#5ADCC8]'
-                            }`}
-                          />
-                          <div>
-                            <div className="font-bold text-white text-[11px]">
-                              {job.id} · {job.city}, OH ({job.required_level})
+                  {state.jobs
+                    .filter((job) => {
+                      if (sourceSiteFilter === 'all') return true;
+                      const isFoundry = job.source_site === 'foundry' || job.division?.includes('Foundry');
+                      return sourceSiteFilter === 'foundry' ? isFoundry : !isFoundry;
+                    })
+                    .map((job) => {
+                      const isFoundry = job.source_site === 'foundry' || job.division?.includes('Foundry');
+                      return (
+                        <div
+                          key={job.id}
+                          data-testid={`os-opportunity-row-${job.id}`}
+                          className="p-2 rounded bg-zinc-950 border border-zinc-800 space-y-1.5 text-xs"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={`h-2.5 w-2.5 rounded-full shrink-0 ${
+                                  job.dot_color === 'red'
+                                    ? 'bg-red-500'
+                                    : job.dot_color === 'amber'
+                                    ? 'bg-amber-400'
+                                    : 'bg-[#5ADCC8]'
+                                }`}
+                              />
+                              <div>
+                                <div className="font-bold text-white text-[11px] flex items-center gap-1.5">
+                                  <span>{job.id} · {job.city}, OH ({job.required_level})</span>
+                                  <span className={`text-[8px] font-mono uppercase px-1 py-0.5 rounded ${
+                                    isFoundry
+                                      ? 'bg-amber-950 text-amber-400 border border-amber-800'
+                                      : 'bg-teal-950 text-[#5ADCC8] border border-teal-800'
+                                  }`}>
+                                    {isFoundry ? 'Foundry' : 'Commercial'}
+                                  </span>
+                                </div>
+                                <div className="text-[10px] text-zinc-400">{job.machine_type}</div>
+                              </div>
                             </div>
-                            <div className="text-[10px] text-zinc-400">{job.machine_type}</div>
+                            <div className="text-right font-mono text-[10px]">
+                              <div className="text-[#5ADCC8] font-bold">{job.status}</div>
+                              <div className="text-zinc-400">{job.posted_hours_ago}h ago</div>
+                            </div>
+                          </div>
+
+                          <div className="text-[10px] font-mono text-zinc-300 flex flex-wrap items-center justify-between gap-1 pt-1 border-t border-zinc-900">
+                            <span>Stage: {job.escalation_stage}</span>
+                            {job.status === 'Unclaimed' && (
+                              <button
+                                type="button"
+                                data-testid={`os-schedule-jason-btn-${job.id}`}
+                                onClick={() => handleScheduleJason(job.id)}
+                                className="px-2 py-0.5 rounded bg-[#5ADCC8] text-black font-black uppercase text-[9px] cursor-pointer"
+                              >
+                                Schedule Jason Now
+                              </button>
+                            )}
                           </div>
                         </div>
-                        <div className="text-right font-mono text-[10px]">
-                          <div className="text-[#5ADCC8] font-bold">{job.status}</div>
-                          <div className="text-zinc-400">{job.posted_hours_ago}h ago</div>
-                        </div>
-                      </div>
-
-                      <div className="text-[10px] font-mono text-zinc-300 flex flex-wrap items-center justify-between gap-1 pt-1 border-t border-zinc-900">
-                        <span>Stage: {job.escalation_stage}</span>
-                        {job.status === 'Unclaimed' && (
-                          <button
-                            type="button"
-                            data-testid={`os-schedule-jason-btn-${job.id}`}
-                            onClick={() => handleScheduleJason(job.id)}
-                            className="px-2 py-0.5 rounded bg-[#5ADCC8] text-black font-black uppercase text-[9px] cursor-pointer"
-                          >
-                            Schedule Jason Now
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+                      );
+                    })}
                 </div>
 
                 {/* Loaner Fleet LN-01..LN-05 Mini Strip */}

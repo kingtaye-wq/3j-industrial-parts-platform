@@ -65,6 +65,7 @@ export interface CustomerRecord {
   is_contract_account: boolean;
   contact_Placeholder: string;
   contract_info: CustomerContractInfo;
+  source_site?: 'foundry' | 'commercial';
 }
 
 export interface MachineRecord {
@@ -172,6 +173,7 @@ export interface JobRecord {
   estimated_labor_tier: 'Bench ($119–129/hr)' | 'Field ($139–149/hr)' | 'Refrigeration / Master ($169–179/hr)';
   estimated_hours: number;
   payout_mode: 'Network (15% Fee)' | 'Hub (20% Fee)';
+  source_site?: 'foundry' | 'commercial';
 }
 
 export interface PartRecord {
@@ -239,6 +241,7 @@ export interface QuoteRecord {
   sla_hours_remaining: number;
   turnaround_hours: number;
   status: 'Draft' | 'Needs Jason Approval' | 'Approved / Sent' | 'Accepted' | 'Declined';
+  source_site?: 'foundry' | 'commercial';
   created_at: string;
 }
 
@@ -258,6 +261,7 @@ export interface BookingRecord {
   preferred_window: string;
   care_plan_member: boolean;
   status: 'Scheduled on Map' | 'Blocked — Out of County' | 'Escalated to Needs Jason';
+  source_site?: 'foundry' | 'commercial';
   created_at: string;
 }
 
@@ -331,18 +335,23 @@ export interface NeedsJasonItem {
   id: string;
   category:
     | 'Quote Approval'
+    | 'Foundry Quote Approval'
+    | 'Commercial Quote Approval'
+    | 'Commercial Lead Inbound'
     | '3JI-Repair Trainee Graduation Sign-Off'
     | 'Sanitizing Log Sign-Off'
     | 'Out-of-County Exception'
     | 'Low-Stock Critical Part'
     | 'Opportunity Escalated (Module 1 Retention Rule)'
-    | 'Tech COI / Cert Expiry';
+    | 'Tech COI / Cert Expiry'
+    | (string & {});
   division: 'Division 01 — Foundry' | 'Division 02 — 3JI-Repair' | '3JI-Repair & Tech Network';
   title: string;
   detail: string;
   priority: 'CRITICAL' | 'HIGH' | 'STANDARD';
   status: 'Pending Jason' | 'Approved / Signed Off';
   linked_entity_id?: string;
+  source_site?: 'foundry' | 'commercial';
   created_at: string;
 }
 
